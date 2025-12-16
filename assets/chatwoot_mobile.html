@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>在线客服</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    }
+    
+    /* 聊天容器 */
+    #chatwoot-container {
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+    
+    /* 加载动画 */
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      transition: opacity 0.3s;
+    }
+    
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(180, 230, 102, 0.3);
+      border-top-color: #B4E666;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    #loading-text {
+      color: #B4E666;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div id="loading-text">正在连接客服...</div>
+  </div>
+  
+  <div id="chatwoot-container"></div>
+
+  <script>
+    // 配置信息（将被 Flutter 替换）
+    const CONFIG = {
+      baseUrl: 'CHATWOOT_BASE_URL',
+      websiteToken: 'CHATWOOT_TOKEN',
+      userId: 'USER_ID',
+      userName: 'USER_NAME',
+      userEmail: 'USER_EMAIL'
+    };
+    
+    // 日志函数
+    function log(message, type = 'info') {
+      const prefix = {
+        info: '📘',
+        success: '✅',
+        error: '❌',
+        warning: '⚠️'
+      }[type] || 'ℹ️';
+      
+      console.log(`${prefix} ${message}`);
+      
+      // 发送到 Flutter
+      if (window.FlutterLog) {
+        try {
+          window.FlutterLog.postMessage(`${type.toUpperCase()}: ${message}`);
+        } catch (e) {
+          console.error('Failed to send to Flutter:', e);
+        }
+      }
+    }
+    
+    // 隐藏加载动画
+    function hideLoading() {
+      const loading = document.getElementById('loading');
+      if (loading) {
+        setTimeout(() => {
+          loading.classList.add('hidden');
+        }, 500);
+      }
+    }
+    
+    // 更新加载文本
+    function updateLoadingText(text) {
+      const elem = document.getElementById('loading-text');
+      if (elem) elem.textContent = text;
+    }
+    
+    // 初始化 Chatwoot
+    function initChatwoot() {
+      log('🚀 开始初始化 Chatwoot Mobile');
+      log('配置: ' + JSON.stringify(CONFIG));
+      
+      try {
+        updateLoadingText('加载 Chatwoot SDK...');
+        
+        // 标准 Chatwoot SDK 初始化
+        (function(d, t) {
+          var BASE_URL = CONFIG.baseUrl;
+          var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
+          g.src = BASE_URL + "/packs/js/sdk.js";
+          g.defer = true;
+          g.async = true;
+          
+          g.onload = function() {
+            log('✅ Chatwoot SDK 加载成功', 'success');
+            updateLoadingText('初始化客服系统...');
+            
+            try {
+              // 运行 Chatwoot SDK
+              window.chatwootSDK.run({
+                websiteToken: CONFIG.websiteToken,
+                baseUrl: CONFIG.baseUrl
+              });
+              log('✅ Chatwoot SDK 运行成功', 'success');
+              
+              // 等待 Chatwoot 就绪
+              window.addEventListener('chatwoot:ready', function() {
+                log('✅ Chatwoot 就绪事件触发', 'success');
+                updateLoadingText('设置用户信息...');
+                
+                try {
+                  // 设置用户信息
+                  window.$chatwoot.setUser(CONFIG.userId, {
+                    name: CONFIG.userName,
+                    email: CONFIG.userEmail
+                  });
+                  log('👤 用户信息已设置: ' + CONFIG.userName, 'success');
+                  
+                  // 设置语言
+                  window.$chatwoot.setLocale('zh_CN');
+                  log('🌐 语言已设置为中文', 'success');
+                  
+                  // 自动打开聊天窗口
+                  setTimeout(function() {
+                    window.$chatwoot.toggle('open');
+                    log('💬 聊天窗口已打开', 'success');
+                    hideLoading();
+                  }, 500);
+                  
+                } catch (e) {
+                  log('❌ 设置用户信息失败: ' + e.message, 'error');
+                  hideLoading();
+                }
+              });
+              
+              // 监听错误事件
+              window.addEventListener('chatwoot:error', function(error) {
+                log('❌ Chatwoot 错误: ' + JSON.stringify(error), 'error');
+              });
+              
+            } catch (e) {
+              log('❌ 运行 Chatwoot SDK 失败: ' + e.message, 'error');
+              hideLoading();
+            }
+          };
+          
+          g.onerror = function(error) {
+            log('❌ SDK 加载失败: ' + error, 'error');
+            updateLoadingText('加载失败，请检查网络');
+            setTimeout(hideLoading, 2000);
+          };
+          
+          s.parentNode.insertBefore(g, s);
+          log('📦 SDK 脚本已插入', 'info');
+          
+        })(document, "script");
+        
+      } catch (e) {
+        log('❌ 初始化失败: ' + e.message, 'error');
+        hideLoading();
+      }
+    }
+    
+    // 页面加载完成后初始化
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initChatwoot);
+    } else {
+      initChatwoot();
+    }
+    
+    // 全局错误捕获
+    window.addEventListener('error', function(event) {
+      log('全局错误: ' + event.message, 'error');
+    });
+    
+    // 监听消息事件（调试用）
+    if (window.addEventListener) {
+      window.addEventListener('message', function(e) {
+        log('收到消息事件: ' + JSON.stringify(e.data), 'info');
+      }, false);
+    }
+  </script>
+</body>
+</html>
+
+
+
+

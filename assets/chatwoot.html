@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>在线客服</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000000;
+    }
+    
+    /* 全屏 iframe 容器 */
+    #chatwoot-iframe-container {
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+    
+    /* iframe 样式 */
+    #chatwoot-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    
+    /* 加载动画 */
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      transition: opacity 0.3s;
+    }
+    
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(180, 230, 102, 0.3);
+      border-top-color: #B4E666;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    #loading-text {
+      color: #B4E666;
+      margin-top: 20px;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 14px;
+    }
+    
+    /* 错误提示 */
+    #error {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(244, 67, 54, 0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      z-index: 10001;
+    }
+    
+    #error.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- 加载动画 -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div id="loading-text">正在连接客服...</div>
+  </div>
+  
+  <!-- 错误提示 -->
+  <div id="error">
+    <h3>⚠️ 连接失败</h3>
+    <p id="error-message"></p>
+  </div>
+  
+  <!-- Chatwoot iframe 容器 -->
+  <div id="chatwoot-iframe-container">
+    <iframe id="chatwoot-iframe" allow="microphone; camera"></iframe>
+  </div>
+
+  <script>
+    // 配置信息
+    const CONFIG = {
+      baseUrl: 'http://43.132.120.194:3000',
+      websiteToken: 'mYm3V3bEheaSb6GpSHvKKLUn',
+      userId: 'guest_' + Date.now(),
+      userName: 'Guest User',
+      userEmail: 'guest@example.com'
+    };
+    
+    // 日志函数
+    function log(message, type = 'info') {
+      const prefix = {
+        info: '📘',
+        success: '✅',
+        error: '❌',
+        warning: '⚠️'
+      }[type] || 'ℹ️';
+      
+      console.log(`${prefix} ${message}`);
+      
+      // 发送到 Flutter
+      if (window.FlutterLog) {
+        window.FlutterLog.postMessage(`${type.toUpperCase()}: ${message}`);
+      }
+    }
+    
+    // 更新加载文本
+    function updateLoadingText(text) {
+      const loadingText = document.getElementById('loading-text');
+      if (loadingText) {
+        loadingText.textContent = text;
+      }
+    }
+    
+    // 隐藏加载动画
+    function hideLoading() {
+      const loading = document.getElementById('loading');
+      if (loading) {
+        setTimeout(() => {
+          loading.classList.add('hidden');
+          setTimeout(() => loading.style.display = 'none', 300);
+        }, 500);
+      }
+    }
+    
+    // 显示错误
+    function showError(message) {
+      log('显示错误: ' + message, 'error');
+      const errorDiv = document.getElementById('error');
+      const errorMsg = document.getElementById('error-message');
+      if (errorDiv && errorMsg) {
+        errorMsg.textContent = message;
+        errorDiv.classList.add('show');
+      }
+      hideLoading();
+    }
+    
+    // 初始化 Chatwoot iframe
+    function initChatwoot() {
+      log('开始初始化 Chatwoot');
+      
+      try {
+        const iframe = document.getElementById('chatwoot-iframe');
+        
+        if (!iframe) {
+          throw new Error('找不到 iframe 元素');
+        }
+        
+        // 构建 iframe URL
+        // Chatwoot 的 Web Widget 直接嵌入 URL
+        const iframeUrl = `${CONFIG.baseUrl}/widget?website_token=${CONFIG.websiteToken}&locale=zh_CN`;
+        
+        log('加载 URL: ' + iframeUrl);
+        updateLoadingText('正在连接...');
+        
+        // 监听 iframe 加载
+        iframe.onload = function() {
+          log('iframe 加载完成', 'success');
+          updateLoadingText('连接成功！');
+          hideLoading();
+        };
+        
+        iframe.onerror = function(error) {
+          log('iframe 加载失败', 'error');
+          showError('无法连接到客服服务器，请检查网络');
+        };
+        
+        // 设置 iframe src
+        iframe.src = iframeUrl;
+        
+        log('iframe src 已设置', 'success');
+        
+      } catch (error) {
+        log('初始化失败: ' + error.message, 'error');
+        showError('初始化失败: ' + error.message);
+      }
+    }
+    
+    // 全局错误捕获
+    window.addEventListener('error', function(event) {
+      log('全局错误: ' + event.message, 'error');
+    });
+    
+    // 页面加载完成后初始化
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initChatwoot);
+    } else {
+      initChatwoot();
+    }
+    
+    // 监听 iframe 消息
+    window.addEventListener('message', function(event) {
+      // 只接受来自 Chatwoot 的消息
+      if (event.origin === CONFIG.baseUrl) {
+        log('收到 Chatwoot 消息: ' + JSON.stringify(event.data), 'info');
+      }
+    });
+  </script>
+</body>
+</html>

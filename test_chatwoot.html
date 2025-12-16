@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatwoot 连接测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pending { background: #ffc107; color: #000; }
+        .status.success { background: #4caf50; color: #fff; }
+        .status.error { background: #f44336; color: #fff; }
+        h2 { color: #333; margin-top: 0; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .console .error { color: #f48771; }
+        .console .success { color: #89d185; }
+        .console .info { color: #6796e6; }
+        button {
+            background: #B4E666;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover { background: #a0d055; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Chatwoot 连接诊断工具</h1>
+    
+    <div class="test-box">
+        <h2>配置信息</h2>
+        <p><strong>Base URL:</strong> <code>http://43.132.120.194:3000</code></p>
+        <p><strong>Website Token:</strong> <code>mYm3V3bEheaSb6GpSHvKKLUn</code></p>
+    </div>
+
+    <div class="test-box">
+        <h2>测试 1: 服务器可达性
+            <span id="test1-status" class="status pending">测试中...</span>
+        </h2>
+        <p>检查服务器是否可以访问</p>
+        <div id="test1-result" class="console">等待测试结果...</div>
+    </div>
+
+    <div class="test-box">
+        <h2>测试 2: SDK 脚本加载
+            <span id="test2-status" class="status pending">等待中...</span>
+        </h2>
+        <p>尝试加载 Chatwoot SDK 脚本</p>
+        <div id="test2-result" class="console">等待测试结果...</div>
+    </div>
+
+    <div class="test-box">
+        <h2>测试 3: SDK 初始化
+            <span id="test3-status" class="status pending">等待中...</span>
+        </h2>
+        <p>初始化 Chatwoot SDK</p>
+        <div id="test3-result" class="console">等待测试结果...</div>
+        <button id="open-chat" style="margin-top: 10px; display: none;">打开聊天窗口</button>
+    </div>
+
+    <div class="test-box">
+        <h2>浏览器控制台日志</h2>
+        <p>按 F12 打开开发者工具查看完整日志</p>
+        <div id="console-log" class="console"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://43.132.120.194:3000';
+        const WEBSITE_TOKEN = 'mYm3V3bEheaSb6GpSHvKKLUn';
+        
+        const consoleLog = document.getElementById('console-log');
+        
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = `[${time}] ${message}`;
+            consoleLog.appendChild(logEntry);
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
+
+        function updateStatus(testId, status, message) {
+            const statusEl = document.getElementById(`${testId}-status`);
+            const resultEl = document.getElementById(`${testId}-result`);
+            
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status === 'success' ? '✓ 成功' : status === 'error' ? '✗ 失败' : '⧗ 测试中...';
+            resultEl.textContent = message;
+        }
+
+        // 测试 1: 服务器可达性
+        async function test1() {
+            log('开始测试服务器可达性...', 'info');
+            updateStatus('test1', 'pending', '正在连接服务器...');
+            
+            try {
+                const response = await fetch(BASE_URL, {
+                    method: 'GET',
+                    mode: 'no-cors' // 避免 CORS 错误
+                });
+                
+                // no-cors 模式下 response.ok 总是 true，所以我们假设能发出请求就表示服务器可达
+                log('服务器响应成功', 'success');
+                updateStatus('test1', 'success', `✓ 服务器可以访问\n响应类型: ${response.type}\n注意: no-cors 模式无法读取响应内容`);
+                test2(); // 继续下一个测试
+            } catch (error) {
+                log(`服务器连接失败: ${error.message}`, 'error');
+                updateStatus('test1', 'error', `✗ 无法连接到服务器\n错误: ${error.message}\n\n可能的原因:\n1. 服务器未运行\n2. IP地址或端口错误\n3. 防火墙阻止`);
+                updateStatus('test2', 'error', '跳过（依赖测试1）');
+                updateStatus('test3', 'error', '跳过（依赖测试2）');
+            }
+        }
+
+        // 测试 2: 加载 SDK
+        function test2() {
+            log('开始加载 Chatwoot SDK...', 'info');
+            updateStatus('test2', 'pending', '正在加载 SDK 脚本...');
+            
+            const script = document.createElement('script');
+            script.src = `${BASE_URL}/packs/js/sdk.js`;
+            script.async = true;
+            script.defer = true;
+            
+            script.onload = function() {
+                log('SDK 脚本加载成功', 'success');
+                updateStatus('test2', 'success', `✓ SDK 脚本加载成功\n脚本地址: ${BASE_URL}/packs/js/sdk.js\nwindow.chatwootSDK 存在: ${typeof window.chatwootSDK !== 'undefined'}`);
+                
+                // 等待一下再测试初始化
+                setTimeout(test3, 500);
+            };
+            
+            script.onerror = function(error) {
+                log(`SDK 脚本加载失败`, 'error');
+                updateStatus('test2', 'error', `✗ SDK 脚本加载失败\n脚本地址: ${BASE_URL}/packs/js/sdk.js\n\n可能的原因:\n1. CORS 问题（服务器未设置允许跨域）\n2. 脚本路径不正确\n3. 服务器未正确部署 Chatwoot`);
+                updateStatus('test3', 'error', '跳过（依赖测试2）');
+            };
+            
+            document.body.appendChild(script);
+        }
+
+        // 测试 3: 初始化 SDK
+        function test3() {
+            log('开始初始化 Chatwoot SDK...', 'info');
+            updateStatus('test3', 'pending', '正在初始化 SDK...');
+            
+            try {
+                if (typeof window.chatwootSDK === 'undefined') {
+                    throw new Error('window.chatwootSDK 未定义');
+                }
+                
+                window.chatwootSDK.run({
+                    websiteToken: WEBSITE_TOKEN,
+                    baseUrl: BASE_URL
+                });
+                
+                log('SDK 初始化成功', 'success');
+                updateStatus('test3', 'success', `✓ SDK 初始化成功\nWebsite Token: ${WEBSITE_TOKEN}\nBase URL: ${BASE_URL}\n\n等待 chatwoot:ready 事件...`);
+                
+                // 监听 chatwoot:ready 事件
+                window.addEventListener('chatwoot:ready', function() {
+                    log('Chatwoot 已准备就绪！', 'success');
+                    updateStatus('test3', 'success', `✓ Chatwoot 完全初始化成功！\n\n聊天窗口应该出现在页面右下角。\n如果没有看到，请检查浏览器控制台。`);
+                    document.getElementById('open-chat').style.display = 'inline-block';
+                });
+                
+                // 打开聊天按钮
+                document.getElementById('open-chat').addEventListener('click', function() {
+                    if (window.$chatwoot) {
+                        window.$chatwoot.toggle('open');
+                        log('手动打开聊天窗口', 'info');
+                    }
+                });
+                
+            } catch (error) {
+                log(`SDK 初始化失败: ${error.message}`, 'error');
+                updateStatus('test3', 'error', `✗ SDK 初始化失败\n错误: ${error.message}\n\n可能的原因:\n1. Website Token 不正确\n2. Chatwoot 后台配置有误\n3. 服务器 WebSocket 连接失败`);
+            }
+        }
+
+        // 捕获全局错误
+        window.addEventListener('error', function(event) {
+            log(`全局错误: ${event.message}`, 'error');
+        });
+
+        // 开始测试
+        log('=== 开始 Chatwoot 连接诊断 ===', 'info');
+        test1();
+    </script>
+</body>
+</html>
+
+
+
+
+

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 连接测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pending { background: #ffc107; color: #000; }
+        .status.success { background: #4caf50; color: #fff; }
+        .status.error { background: #f44336; color: #fff; }
+        .console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .console .error { color: #f48771; }
+        .console .success { color: #89d185; }
+        .console .info { color: #6796e6; }
+        .console .warning { color: #ffcc66; }
+        button {
+            background: #B4E666;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover { background: #a0d055; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        h2 { color: #333; margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>🔌 WebSocket 连接测试</h1>
+    
+    <div class="test-box">
+        <h2>配置信息</h2>
+        <p><strong>WebSocket URL:</strong> <code id="ws-url">ws://43.132.120.194:3000/cable</code></p>
+        <button onclick="testWebSocket('ws')">测试 WS (HTTP)</button>
+        <button onclick="testWebSocket('wss')">测试 WSS (HTTPS)</button>
+    </div>
+
+    <div class="test-box">
+        <h2>WebSocket 连接状态
+            <span id="ws-status" class="status pending">未连接</span>
+        </h2>
+        <div id="ws-console" class="console">等待测试...</div>
+    </div>
+
+    <div class="test-box">
+        <h2>测试消息收发</h2>
+        <button id="send-btn" onclick="sendTestMessage()" disabled>发送测试消息</button>
+        <button id="close-btn" onclick="closeConnection()" disabled>关闭连接</button>
+    </div>
+
+    <script>
+        let ws = null;
+        const consoleEl = document.getElementById('ws-console');
+        const statusEl = document.getElementById('ws-status');
+        const sendBtn = document.getElementById('send-btn');
+        const closeBtn = document.getElementById('close-btn');
+        
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = `[${time}] ${message}`;
+            consoleEl.appendChild(logEntry);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
+
+        function updateStatus(status, text) {
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = text;
+        }
+
+        function testWebSocket(protocol) {
+            if (ws && ws.readyState !== WebSocket.CLOSED) {
+                log('关闭现有连接...', 'warning');
+                ws.close();
+            }
+
+            consoleEl.innerHTML = '';
+            const wsUrl = `${protocol}://43.132.120.194:3000/cable`;
+            document.getElementById('ws-url').textContent = wsUrl;
+            
+            log(`准备连接到: ${wsUrl}`, 'info');
+            updateStatus('pending', '连接中...');
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function(event) {
+                    log('✅ WebSocket 连接成功！', 'success');
+                    updateStatus('success', '✓ 已连接');
+                    sendBtn.disabled = false;
+                    closeBtn.disabled = false;
+                    
+                    // Chatwoot 需要发送订阅消息
+                    const subscribeMessage = {
+                        command: 'subscribe',
+                        identifier: JSON.stringify({
+                            channel: 'RoomChannel',
+                            pubsub_token: 'test-token'
+                        })
+                    };
+                    log('发送订阅消息...', 'info');
+                    ws.send(JSON.stringify(subscribeMessage));
+                };
+                
+                ws.onmessage = function(event) {
+                    log(`📩 收到消息: ${event.data}`, 'success');
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'ping') {
+                            log('🏓 收到心跳包 (ping)', 'info');
+                        } else if (data.type === 'welcome') {
+                            log('🎉 收到欢迎消息！WebSocket 工作正常', 'success');
+                        } else if (data.type === 'confirm_subscription') {
+                            log('✅ 频道订阅成功', 'success');
+                        }
+                    } catch (e) {
+                        // 不是 JSON 格式
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    log(`❌ WebSocket 错误: ${error}`, 'error');
+                    updateStatus('error', '✗ 连接错误');
+                    sendBtn.disabled = true;
+                    closeBtn.disabled = true;
+                };
+                
+                ws.onclose = function(event) {
+                    log(`🔌 WebSocket 连接关闭 (代码: ${event.code}, 原因: ${event.reason || '无'})`, 'warning');
+                    updateStatus('error', '✗ 已断开');
+                    sendBtn.disabled = true;
+                    closeBtn.disabled = true;
+                    
+                    if (event.code === 1006) {
+                        log('💡 提示: 代码 1006 通常表示连接异常关闭，可能原因:', 'warning');
+                        log('  1. 服务器不支持 WebSocket', 'warning');
+                        log('  2. 防火墙或代理阻止了 WebSocket', 'warning');
+                        log('  3. 需要配置 Nginx 支持 WebSocket', 'warning');
+                    }
+                };
+                
+            } catch (error) {
+                log(`❌ 创建 WebSocket 失败: ${error.message}`, 'error');
+                updateStatus('error', '✗ 创建失败');
+            }
+        }
+
+        function sendTestMessage() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = {
+                    command: 'message',
+                    data: JSON.stringify({ test: 'ping', timestamp: Date.now() })
+                };
+                ws.send(JSON.stringify(message));
+                log('📤 发送测试消息', 'info');
+            } else {
+                log('❌ WebSocket 未连接', 'error');
+            }
+        }
+
+        function closeConnection() {
+            if (ws) {
+                ws.close();
+                log('手动关闭连接', 'info');
+            }
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            log('=== WebSocket 诊断工具 ===', 'info');
+            log('点击上方按钮开始测试', 'info');
+        };
+    </script>
+</body>
+</html>
+
+
+
+
+
