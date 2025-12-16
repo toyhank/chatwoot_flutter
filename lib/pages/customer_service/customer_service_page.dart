@@ -5,8 +5,8 @@ import '../../config/app_config.dart';
 import '../../utils/storage_util.dart';
 
 // Web平台专用导入
-import 'dart:html' as html show document, ScriptElement;
-import 'dart:js' as js;
+import 'dart:ui_web' as ui_web;
+import 'dart:html' as html;
 
 /// Chatwoot 客服页面
 /// 参考: https://medium.com/@mehulcs/chatwoot-integration-in-flutter-without-a-third-party-package-e8a5d114dec3
@@ -22,6 +22,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
+  String _webViewId = 'chatwoot-iframe-${DateTime.now().millisecondsSinceEpoch}';
 
   @override
   void initState() {
@@ -98,7 +99,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     }
   }
 
-  /// 生成 Chatwoot HTML（核心方法，来自 Medium 文章）
+  /// 生成 Chatwoot HTML（使用 SDK 强制保持展开状态）
   String _generateChatwootHTML({
     required String baseUrl,
     required String websiteToken,
@@ -129,7 +130,35 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #f5f5f5;
+      background: #fff;
+    }
+    
+    /* 隐藏 Chatwoot 的浮动按钮，只显示聊天窗口 */
+    .woot-widget-bubble {
+      display: none !important;
+    }
+    
+    /* 让聊天窗口占满整个屏幕 */
+    .woot--bubble-holder {
+      bottom: 0 !important;
+      right: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-height: 100% !important;
+    }
+    
+    .woot-widget-holder {
+      width: 100% !important;
+      height: 100% !important;
+      max-height: 100% !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+    
+    iframe.woot-widget {
+      width: 100% !important;
+      height: 100% !important;
+      max-height: 100% !important;
     }
     
     #loading {
@@ -139,6 +168,10 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
       transform: translate(-50%, -50%);
       text-align: center;
       font-family: system-ui, -apple-system, sans-serif;
+      z-index: 99999;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
     }
     
     .spinner {
@@ -163,11 +196,10 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
 <body>
   <div id="loading">
     <div class="spinner"></div>
-    <p>正在连接客服...</p>
+    <p style="color: #666;">正在连接客服...</p>
   </div>
 
   <script>
-    // Chatwoot 配置
     (function(d,t) {
       var BASE_URL = "$baseUrl";
       var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
@@ -194,26 +226,42 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
             email: '$safeUserEmail'
           });
           
-          // 设置语言为中文
+          // 设置语言
           window.\$chatwoot.setLocale('zh_CN');
           
-          // 自动打开聊天窗口
+          // 强制打开并保持展开状态
+          window.\$chatwoot.toggle('open');
+          
+          // 隐藏加载动画
           setTimeout(function() {
-            window.\$chatwoot.toggle('open');
             document.getElementById('loading').classList.add('hide');
-          }, 300);
+          }, 500);
+          
+          console.log('💬 聊天窗口已强制展开');
         });
         
-        // 错误处理
-        window.addEventListener('chatwoot:error', function(error) {
-          console.error('❌ Chatwoot 错误:', error);
-          alert('客服系统加载失败，请稍后重试');
+        // 监听所有 Chatwoot 事件，防止窗口关闭
+        window.addEventListener('chatwoot:on-message', function() {
+          // 确保窗口始终打开
+          if (window.\$chatwoot && window.\$chatwoot.isOpen && !window.\$chatwoot.isOpen()) {
+            window.\$chatwoot.toggle('open');
+            console.log('🔄 检测到窗口关闭，重新打开');
+          }
         });
+        
+        // 定期检查并保持窗口打开（每2秒检查一次）
+        setInterval(function() {
+          if (window.\$chatwoot && window.\$chatwoot.isOpen && !window.\$chatwoot.isOpen()) {
+            window.\$chatwoot.toggle('open');
+            console.log('🔄 定期检查：重新打开聊天窗口');
+          }
+        }, 2000);
       };
       
       g.onerror = function() {
         console.error('❌ SDK 加载失败');
-        alert('无法连接到客服系统');
+        document.getElementById('loading').innerHTML = 
+          '<p style="color: #f44336;">无法连接到客服系统<br>请检查网络连接</p>';
       };
       
       s.parentNode.insertBefore(g, s);
@@ -234,7 +282,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
         .replaceAll("'", '&#39;');
   }
 
-  /// Web 平台：直接注入 Chatwoot 脚本
+  /// Web 平台：注册 iframe 视图（使用 SDK 方式）
   Future<void> _injectChatwootForWeb() async {
     try {
       final userId = await StorageUtil.getString('userId') ?? 
@@ -243,57 +291,33 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
       final userEmail = await StorageUtil.getString('userEmail') ?? 
           'guest@example.com';
 
-      // 检查是否已经注入
-      if (html.document.getElementById('chatwoot-sdk') != null) {
-        debugPrint('⚠️ Chatwoot SDK 已存在');
-        try {
-          js.context.callMethod('eval', ["window.\$chatwoot?.toggle('open');"]);
-        } catch (e) {
-          debugPrint('打开失败: $e');
-        }
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
+      // 生成完整的HTML内容
+      final htmlContent = _generateChatwootHTML(
+        baseUrl: AppConfig.chatwootBaseUrl,
+        websiteToken: AppConfig.chatwootWebsiteToken,
+        userId: userId,
+        userName: userName,
+        userEmail: userEmail,
+      );
 
-      // 加载 SDK
-      final script = html.ScriptElement()
-        ..id = 'chatwoot-sdk'
-        ..src = '${AppConfig.chatwootBaseUrl}/packs/js/sdk.js'
-        ..defer = true
-        ..async = true;
+      // 注册平台视图
+      // ignore: undefined_prefixed_name
+      ui_web.platformViewRegistry.registerViewFactory(
+        _webViewId,
+        (int viewId) {
+          final iframe = html.IFrameElement()
+            ..srcdoc = htmlContent
+            ..style.border = 'none'
+            ..style.width = '100%'
+            ..style.height = '100%'
+            ..allow = 'microphone; camera; clipboard-write;';
+          
+          return iframe;
+        },
+      );
 
-      script.onLoad.listen((_) {
-        final initScript = html.ScriptElement()
-          ..text = '''
-            window.chatwootSDK.run({
-              websiteToken: '${AppConfig.chatwootWebsiteToken}',
-              baseUrl: '${AppConfig.chatwootBaseUrl}'
-            });
-            
-            window.addEventListener('chatwoot:ready', function() {
-              window.\$chatwoot.setUser('$userId', {
-                name: '$userName',
-                email: '$userEmail'
-              });
-              window.\$chatwoot.setLocale('zh_CN');
-              window.\$chatwoot.toggle('open');
-            });
-          ''';
-        html.document.body?.append(initScript);
-        if (mounted) setState(() => _isLoading = false);
-      });
-
-      script.onError.listen((_) {
-        if (mounted) {
-          setState(() {
-            _hasError = true;
-            _errorMessage = '无法加载客服系统';
-            _isLoading = false;
-          });
-        }
-      });
-
-      html.document.body?.append(script);
+      debugPrint('✅ Chatwoot SDK 视图已注册');
+      if (mounted) setState(() => _isLoading = false);
     } catch (e) {
       debugPrint('❌ Web平台初始化失败: $e');
       if (mounted) {
@@ -378,30 +402,22 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
       );
     }
 
-    // Web 平台
+    // Web 平台：使用 HtmlElementView 显示 iframe
     if (kIsWeb) {
-      return Center(
-        child: _isLoading
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(
-                    '正在加载客服系统...',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              )
-            : Text(
-                '客服窗口已打开\n请查看页面右下角',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 16,
-                ),
-              ),
-      );
+      if (_isLoading) {
+        return const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('正在加载客服系统...', style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        );
+      }
+      
+      return HtmlElementView(viewType: _webViewId);
     }
 
     // 移动端：WebView
