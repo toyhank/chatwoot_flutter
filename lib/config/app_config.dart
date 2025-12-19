@@ -13,12 +13,12 @@ class AppConfig {
   // Chatwoot 实例地址
   // - 官方云服务: https://app.chatwoot.com
   // - 自建服务器: https://your-domain.com
-  static const String chatwootBaseUrl = 'http://43.132.120.194:3000';
+  static const String chatwootBaseUrl = 'http://localhost:13000';
   
   // Website Token（必填）
   // 在 Chatwoot Inbox 设置中获取，格式类似: 'AbCdEf123456'
-  static const String chatwootWebsiteToken = 'mYm3V3bEheaSb6GpSHvKKLUn';
-  
+  //static const String chatwootWebsiteToken = 'mYm3V3bEheaSb6GpSHvKKLUn';
+  static const String chatwootWebsiteToken = 'fDDqDmMJAqwhh6BDPcN7mu3a';
   // 实现说明：
   // - Web 平台：直接注入 Chatwoot JavaScript SDK
   // - Android/iOS：使用 WebView 加载包含 Chatwoot SDK 的 HTML
