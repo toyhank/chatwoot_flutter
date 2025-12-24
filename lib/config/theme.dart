@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'app_config.dart';
 
 /// 应用主题配置
 class AppTheme {

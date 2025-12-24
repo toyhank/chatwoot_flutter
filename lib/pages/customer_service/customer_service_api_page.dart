@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../config/app_config.dart';
 import '../../models/chatwoot_message.dart';
 import '../../services/chatwoot_api_service.dart';
 import '../../services/chatwoot_websocket_service.dart';
@@ -101,8 +102,8 @@ class _CustomerServiceApiPageState extends State<CustomerServiceApiPage> {
   Future<void> _createContact() async {
     debugPrint('👤 创建新联系人...');
 
-    final userName = await StorageUtil.getString('userName') ?? 'Guest';
-    final userEmail = await StorageUtil.getString('userEmail') ?? 'guest@example.com';
+    final userName = await StorageUtil.getString('userName') ?? AppConfig.defaultUserName;
+    final userEmail = await StorageUtil.getString('userEmail') ?? AppConfig.defaultUserEmail;
 
     _contact = await _apiService.createContact(
       name: userName,

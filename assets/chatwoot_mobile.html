@@ -86,7 +86,9 @@
       websiteToken: 'CHATWOOT_TOKEN',
       userId: 'USER_ID',
       userName: 'USER_NAME',
-      userEmail: 'USER_EMAIL'
+      userEmail: 'USER_EMAIL',
+      // 前端测试用 HMAC Token，生产请改为后端生成 hash
+      hmacToken: 'CHATWOOT_HMAC_TOKEN'
     };
     
     // 日志函数
@@ -126,6 +128,25 @@
       if (elem) elem.textContent = text;
     }
     
+    // 使用浏览器 Web Crypto 生成 HMAC-SHA256（仅测试用）
+    async function generateHMAC(key, message) {
+      if (!window.crypto?.subtle) {
+        throw new Error('当前环境不支持 Web Crypto');
+      }
+      const encoder = new TextEncoder();
+      const cryptoKey = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(key),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
+      return Array.from(new Uint8Array(signature))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+    
     // 初始化 Chatwoot
     function initChatwoot() {
       log('🚀 开始初始化 Chatwoot Mobile');
@@ -155,16 +176,28 @@
               log('✅ Chatwoot SDK 运行成功', 'success');
               
               // 等待 Chatwoot 就绪
-              window.addEventListener('chatwoot:ready', function() {
+              window.addEventListener('chatwoot:ready', async function() {
                 log('✅ Chatwoot 就绪事件触发', 'success');
                 updateLoadingText('设置用户信息...');
                 
                 try {
-                  // 设置用户信息
-                  window.$chatwoot.setUser(CONFIG.userId, {
+                  const userData = {
                     name: CONFIG.userName,
                     email: CONFIG.userEmail
-                  });
+                  };
+                  
+                  // 前端生成 identifier_hash 仅用于测试，生产请改后端生成
+                  if (CONFIG.hmacToken && CONFIG.hmacToken !== 'CHATWOOT_HMAC_TOKEN') {
+                    try {
+                      userData.identifier_hash = await generateHMAC(CONFIG.hmacToken, CONFIG.userId);
+                      log('🔐 已生成前端 HMAC identifier_hash', 'success');
+                    } catch (hashErr) {
+                      log('⚠️ 生成 HMAC 失败（继续无鉴权）: ' + hashErr.message, 'warning');
+                    }
+                  }
+                  
+                  // 设置用户信息
+                  window.$chatwoot.setUser(CONFIG.userId, userData);
                   log('👤 用户信息已设置: ' + CONFIG.userName, 'success');
                   
                   // 设置语言

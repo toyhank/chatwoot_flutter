@@ -15,7 +15,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
   final _accountController = TextEditingController();
   
   String _withdrawType = '银行卡';
-  double _balance = 1000.00; // 示例余额
+  final double _balance = 1000.00; // 示例余额
   
   @override
   void dispose() {

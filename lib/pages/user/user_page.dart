@@ -11,7 +11,7 @@ class UserPage extends StatefulWidget {
 class _UserPageState extends State<UserPage> {
   bool _isLoggedIn = false;
   String _username = '游客';
-  String _avatar = '';
+  final String _avatar = '';
   double _balance = 0.0;
 
   @override

@@ -130,7 +130,7 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${DateTime.now().toString().substring(0, 16)}',
+                            DateTime.now().toString().substring(0, 16),
                             style: const TextStyle(fontSize: 10),
                           ),
                         ],

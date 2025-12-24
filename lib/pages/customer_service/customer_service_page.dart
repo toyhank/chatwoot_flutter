@@ -22,7 +22,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
-  String _webViewId = 'chatwoot-iframe-${DateTime.now().millisecondsSinceEpoch}';
+  final String _webViewId = 'chatwoot-iframe-${DateTime.now().millisecondsSinceEpoch}';
 
   @override
   void initState() {
@@ -41,10 +41,10 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     try {
       // 获取用户信息
       final userId = await StorageUtil.getString('userId') ?? 
-          'guest_${DateTime.now().millisecondsSinceEpoch}';
-      final userName = await StorageUtil.getString('userName') ?? 'Guest';
+          AppConfig.defaultUserId;
+      final userName = await StorageUtil.getString('userName') ?? AppConfig.defaultUserName;
       final userEmail = await StorageUtil.getString('userEmail') ?? 
-          'guest@example.com';
+          AppConfig.defaultUserEmail;
 
       // 创建 WebView 控制器
       _controller = WebViewController()
@@ -81,6 +81,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
         userId: userId,
         userName: userName,
         userEmail: userEmail,
+        hmacToken: AppConfig.chatwootHmacToken,
       );
 
       // 加载 HTML
@@ -106,11 +107,13 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     required String userId,
     required String userName,
     required String userEmail,
+    required String hmacToken,
   }) {
     // 转义字符串以防止 XSS
     final safeUserName = _escapeHtml(userName);
     final safeUserEmail = _escapeHtml(userEmail);
     final safeUserId = _escapeHtml(userId);
+    final safeHmacToken = _escapeHtml(hmacToken);
 
     return '''
 <!DOCTYPE html>
@@ -200,6 +203,25 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
   </div>
 
   <script>
+    // 生成 HMAC-SHA256（仅测试用，生产建议后端生成 hash）
+    async function generateHMAC(key, message) {
+      if (!window.crypto?.subtle) {
+        throw new Error('当前环境不支持 Web Crypto');
+      }
+      const encoder = new TextEncoder();
+      const cryptoKey = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(key),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
+      return Array.from(new Uint8Array(signature))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+    
     (function(d,t) {
       var BASE_URL = "$baseUrl";
       var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
@@ -217,14 +239,25 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
         });
         
         // 等待 Chatwoot 就绪
-        window.addEventListener('chatwoot:ready', function() {
+        window.addEventListener('chatwoot:ready', async function() {
           console.log('✅ Chatwoot 就绪');
           
           // 设置用户信息
-          window.\$chatwoot.setUser('$safeUserId', {
+          const userData = {
             name: '$safeUserName',
             email: '$safeUserEmail'
-          });
+          };
+          
+          if ('$safeHmacToken' && '$safeHmacToken' !== 'CHATWOOT_HMAC_TOKEN') {
+            try {
+              userData.identifier_hash = await generateHMAC('$safeHmacToken', '$safeUserId');
+              console.log('🔐 已生成前端 HMAC identifier_hash');
+            } catch (hashErr) {
+              console.warn('⚠️ 生成 HMAC 失败（继续无鉴权）:', hashErr?.message || hashErr);
+            }
+          }
+          
+          window.\$chatwoot.setUser('$safeUserId', userData);
           
           // 设置语言
           window.\$chatwoot.setLocale('zh_CN');
@@ -286,10 +319,10 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
   Future<void> _injectChatwootForWeb() async {
     try {
       final userId = await StorageUtil.getString('userId') ?? 
-          'guest_${DateTime.now().millisecondsSinceEpoch}';
-      final userName = await StorageUtil.getString('userName') ?? 'Guest';
+          AppConfig.defaultUserId;
+      final userName = await StorageUtil.getString('userName') ?? AppConfig.defaultUserName;
       final userEmail = await StorageUtil.getString('userEmail') ?? 
-          'guest@example.com';
+          AppConfig.defaultUserEmail;
 
       // 生成完整的HTML内容
       final htmlContent = _generateChatwootHTML(
@@ -298,6 +331,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
         userId: userId,
         userName: userName,
         userEmail: userEmail,
+        hmacToken: AppConfig.chatwootHmacToken,
       );
 
       // 注册平台视图

@@ -13,12 +13,20 @@ class AppConfig {
   // Chatwoot 实例地址
   // - 官方云服务: https://app.chatwoot.com
   // - 自建服务器: https://your-domain.com
-  static const String chatwootBaseUrl = 'http://localhost:13000';
+  static const String chatwootBaseUrl = 'http://43.157.0.135:3000';
   
   // Website Token（必填）
   // 在 Chatwoot Inbox 设置中获取，格式类似: 'AbCdEf123456'
   //static const String chatwootWebsiteToken = 'mYm3V3bEheaSb6GpSHvKKLUn';
-  static const String chatwootWebsiteToken = 'fDDqDmMJAqwhh6BDPcN7mu3a';
+  static const String chatwootWebsiteToken = '2RjoRbzhNFtjz7B7W6L5t3Pt';
+  
+  // HMAC Token（开启聊天身份验证时使用，仅测试可放这里，生产请改后端生成 hash）
+  static const String chatwootHmacToken = '';
+  
+  // 默认用户信息（测试用，正式环境请改为真实用户或登录态）
+  static const String defaultUserId = 'user_1001';
+  static const String defaultUserName = '张三';
+  static const String defaultUserEmail = 'user@example.com';
   // 实现说明：
   // - Web 平台：直接注入 Chatwoot JavaScript SDK
   // - Android/iOS：使用 WebView 加载包含 Chatwoot SDK 的 HTML
