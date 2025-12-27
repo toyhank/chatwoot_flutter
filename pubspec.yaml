@@ -76,6 +76,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/icons/
     - assets/chatwoot.html
     - assets/chatwoot_mobile.html

@@ -21,8 +21,10 @@ class UserModel {
   // 从 JSON 创建
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id']?.toString(),
-      username: json['username']?.toString(),
+      // 支持 uid 和 id 两种字段名
+      id: json['uid']?.toString() ?? json['id']?.toString(),
+      // 支持 nickname 和 username 两种字段名
+      username: json['nickname']?.toString() ?? json['username']?.toString(),
       email: json['email']?.toString(),
       phone: json['phone']?.toString(),
       avatar: json['avatar']?.toString(),
@@ -33,15 +35,25 @@ class UserModel {
   
   // 转换为 JSON
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'username': username,
+    final json = <String, dynamic>{
       'email': email,
       'phone': phone,
       'avatar': avatar,
       'balance': balance,
       'token': token,
     };
+    
+    // 同时保存 id/uid 和 username/nickname，确保兼容性
+    if (id != null) {
+      json['id'] = id;
+      json['uid'] = id;  // 同时保存 uid 字段
+    }
+    if (username != null) {
+      json['username'] = username;
+      json['nickname'] = username;  // 同时保存 nickname 字段
+    }
+    
+    return json;
   }
   
   // 复制并更新

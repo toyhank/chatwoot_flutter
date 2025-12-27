@@ -24,8 +24,8 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     // 设置默认测试账号（开发环境）
-    _usernameController.text = 'yushuangqi@hotmail.com';
-    _passwordController.text = '123456';
+    _usernameController.text = 'test@example.com';
+    _passwordController.text = 'Test123!@#';
   }
 
   @override
@@ -283,7 +283,7 @@ class _LoginPageState extends State<LoginPage> {
       await StorageUtil.setString(AppConfig.keyToken, user.token!);
     }
     
-    // 保存用户信息
+    // 保存用户信息（完整JSON）
     await StorageUtil.setString(
       AppConfig.keyUserInfo, 
       jsonEncode(user.toJson()),
@@ -292,9 +292,15 @@ class _LoginPageState extends State<LoginPage> {
     // 保存登录状态
     await StorageUtil.setBool(AppConfig.keyIsLoggedIn, true);
     
-    // 兼容旧版本的键
+    // 保存单独的字段（兼容旧版本代码）
     if (user.id != null) {
-      await StorageUtil.setString('userId', user.id!);
+      await StorageUtil.setString('userId', user.id.toString());
+    }
+    if (user.username != null) {
+      await StorageUtil.setString('userName', user.username!);
+    }
+    if (user.email != null) {
+      await StorageUtil.setString('userEmail', user.email!);
     }
   }
 }

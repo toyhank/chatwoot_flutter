@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../config/app_config.dart';
-import '../../utils/storage_util.dart';
 
 // Web平台专用导入
 import 'dart:ui_web' as ui_web;
@@ -39,12 +38,10 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     }
 
     try {
-      // 获取用户信息
-      final userId = await StorageUtil.getString('userId') ?? 
-          AppConfig.defaultUserId;
-      final userName = await StorageUtil.getString('userName') ?? AppConfig.defaultUserName;
-      final userEmail = await StorageUtil.getString('userEmail') ?? 
-          AppConfig.defaultUserEmail;
+      // 获取用户信息（从登录接口返回的信息中获取）
+      final userId = await AppConfig.getUserId();
+      final userName = await AppConfig.getUserName();
+      final userEmail = await AppConfig.getUserEmail();
 
       // 创建 WebView 控制器
       _controller = WebViewController()
@@ -318,11 +315,10 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
   /// Web 平台：注册 iframe 视图（使用 SDK 方式）
   Future<void> _injectChatwootForWeb() async {
     try {
-      final userId = await StorageUtil.getString('userId') ?? 
-          AppConfig.defaultUserId;
-      final userName = await StorageUtil.getString('userName') ?? AppConfig.defaultUserName;
-      final userEmail = await StorageUtil.getString('userEmail') ?? 
-          AppConfig.defaultUserEmail;
+      // 获取用户信息（从登录接口返回的信息中获取）
+      final userId = await AppConfig.getUserId();
+      final userName = await AppConfig.getUserName();
+      final userEmail = await AppConfig.getUserEmail();
 
       // 生成完整的HTML内容
       final htmlContent = _generateChatwootHTML(

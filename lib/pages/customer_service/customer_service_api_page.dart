@@ -102,8 +102,9 @@ class _CustomerServiceApiPageState extends State<CustomerServiceApiPage> {
   Future<void> _createContact() async {
     debugPrint('👤 创建新联系人...');
 
-    final userName = await StorageUtil.getString('userName') ?? AppConfig.defaultUserName;
-    final userEmail = await StorageUtil.getString('userEmail') ?? AppConfig.defaultUserEmail;
+    // 获取用户信息（从登录接口返回的信息中获取）
+    final userName = await AppConfig.getUserName();
+    final userEmail = await AppConfig.getUserEmail();
 
     _contact = await _apiService.createContact(
       name: userName,
