@@ -137,7 +137,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(_countdown > 0 ? '${_countdown}秒' : '发送验证码'),
+                          : Text(_countdown > 0 ? '$_countdown秒' : '发送验证码'),
                     ),
                   ),
                 ],

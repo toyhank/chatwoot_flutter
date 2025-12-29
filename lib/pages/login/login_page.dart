@@ -238,15 +238,17 @@ class _LoginPageState extends State<LoginPage> {
             // 保存登录状态到本地存储
             await _saveLoginInfo(user);
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('欢迎回来，${user.username ?? "用户"}！'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('欢迎回来，${user.username ?? "用户"}！'),
+                  backgroundColor: Colors.green,
+                ),
+              );
 
-            // 跳转到主页面
-            Navigator.pushReplacementNamed(context, '/main');
+              // 跳转到主页面
+              Navigator.pushReplacementNamed(context, '/main');
+            }
           } else {
             // 登录失败，显示错误信息
             ScaffoldMessenger.of(context).showSnackBar(

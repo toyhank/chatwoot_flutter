@@ -216,11 +216,15 @@ class _CustomerServiceApiPageState extends State<CustomerServiceApiPage> {
       debugPrint('✅ 消息发送成功');
     } catch (e) {
       debugPrint('❌ 发送消息失败: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('发送失败: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('发送失败: $e')),
+        );
+      }
     } finally {
-      setState(() => _isSending = false);
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
     }
   }
 
@@ -344,7 +348,7 @@ class _CustomerServiceApiPageState extends State<CustomerServiceApiPage> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 4,
                 offset: const Offset(0, -2),
               ),

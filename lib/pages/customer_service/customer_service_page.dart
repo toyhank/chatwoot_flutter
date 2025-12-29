@@ -5,7 +5,8 @@ import '../../config/app_config.dart';
 
 // Web平台专用导入
 import 'dart:ui_web' as ui_web;
-import 'dart:html' as html;
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html if (dart.library.html) 'dart:html' as html;
 
 /// Chatwoot 客服页面
 /// 参考: https://medium.com/@mehulcs/chatwoot-integration-in-flutter-without-a-third-party-package-e8a5d114dec3
