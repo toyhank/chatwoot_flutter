@@ -1,0 +1,234 @@
+name: 部署到生产环境
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - production
+    tags:
+      - 'v*'
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/deploy-production.yml'
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: '确认部署到生产环境（输入 yes 确认）'
+        required: true
+        default: 'no'
+
+jobs:
+  build-and-deploy:
+    name: 构建并部署到生产环境
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: 确认生产环境部署
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.confirm_production }}" != "yes" ]; then
+            echo "❌ 部署已取消：必须输入 'yes' 确认生产环境部署"
+            exit 1
+          fi
+          echo "✅ 已确认生产环境部署"
+
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: 获取依赖
+        run: flutter pub get
+
+      - name: 分析代码
+        run: flutter analyze
+
+      - name: 构建 Web 应用（生产环境）
+        run: |
+          flutter build web --release --web-renderer html --dart-define=ENV=production
+        env:
+          FLUTTER_BUILD_MODE: release
+
+      - name: 打包构建产物
+        run: |
+          cd build
+          tar -czf ../deploy_package.tar.gz web
+          cd ..
+
+      - name: 配置 SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.PRODUCTION_SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 上传到生产服务器
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.PRODUCTION_SERVER_USER }}@${{ secrets.PRODUCTION_SERVER_HOST }} \
+            "mkdir -p /tmp/chatwoot_flutter_deploy"
+          
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            deploy_package.tar.gz \
+            ${{ secrets.PRODUCTION_SERVER_USER }}@${{ secrets.PRODUCTION_SERVER_HOST }}:/tmp/chatwoot_flutter_deploy/
+
+      - name: 部署到生产服务器
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.PRODUCTION_SERVER_USER }}@${{ secrets.PRODUCTION_SERVER_HOST }} << 'EOF'
+          set -e
+          
+          DEPLOY_DIR="${DEPLOY_DIR:-/var/www/chatwoot_flutter}"
+          NGINX_CONFIG_DIR="/etc/nginx/sites-available"
+          NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
+          
+          echo "正在部署应用到生产环境..."
+          
+          # 创建部署目录
+          mkdir -p $DEPLOY_DIR
+          cd $DEPLOY_DIR
+          
+          # 备份旧版本
+          if [ -d 'web' ]; then
+            echo "备份旧版本..."
+            BACKUP_DIR="web_backup_$(date +%Y%m%d_%H%M%S)"
+            mv web $BACKUP_DIR
+            echo "✅ 旧版本已备份到 $BACKUP_DIR"
+          fi
+          
+          # 解压新版本
+          tar -xzf /tmp/chatwoot_flutter_deploy/deploy_package.tar.gz
+          
+          # 设置权限
+          chmod -R 755 $DEPLOY_DIR
+          
+          # 配置 Nginx
+          echo "配置 Nginx..."
+          
+          cat > /tmp/chatwoot_flutter.conf << 'NGINX_EOF'
+          # Flutter Web 应用配置（生产环境）
+          server {
+              listen 80;
+              server_name _;
+              
+              root $DEPLOY_DIR/web;
+              index index.html;
+              
+              # Gzip 压缩
+              gzip on;
+              gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+              gzip_min_length 1000;
+              
+              # Flutter Web 应用
+              location / {
+                  try_files $uri $uri/ /index.html;
+                  add_header Cache-Control 'no-cache, no-store, must-revalidate';
+                  add_header Pragma 'no-cache';
+                  add_header Expires '0';
+              }
+              
+              # 静态资源缓存
+              location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+                  expires 1y;
+                  add_header Cache-Control 'public, immutable';
+              }
+              
+              # Chatwoot API 代理
+              location /api/v1/ {
+                  proxy_pass http://127.0.0.1:3000/api/v1/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  
+                  add_header 'Access-Control-Allow-Origin' '*' always;
+                  add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE' always;
+                  add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+                  
+                  if ($request_method = 'OPTIONS') {
+                      return 204;
+                  }
+              }
+              
+              # Chatwoot WebSocket
+              location /cable {
+                  proxy_pass http://127.0.0.1:3000/cable;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  
+                  proxy_connect_timeout 7d;
+                  proxy_send_timeout 7d;
+                  proxy_read_timeout 7d;
+              }
+              
+              # Chatwoot 公共资源
+              location /public/ {
+                  proxy_pass http://127.0.0.1:3000/public/;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+              }
+          }
+          NGINX_EOF
+          
+          # 安装配置
+          cp /tmp/chatwoot_flutter.conf $NGINX_CONFIG_DIR/chatwoot_flutter.conf
+          
+          # 创建软链接
+          if [ ! -L "$NGINX_ENABLED_DIR/chatwoot_flutter.conf" ]; then
+            ln -s $NGINX_CONFIG_DIR/chatwoot_flutter.conf $NGINX_ENABLED_DIR/chatwoot_flutter.conf
+          fi
+          
+          # 删除默认配置
+          if [ -L "$NGINX_ENABLED_DIR/default" ]; then
+            rm $NGINX_ENABLED_DIR/default
+          fi
+          
+          # 测试 Nginx 配置
+          nginx -t
+          
+          # 重启 Nginx
+          systemctl restart nginx
+          
+          # 清理
+          rm -rf /tmp/chatwoot_flutter_deploy
+          
+          echo "✅ 生产环境部署完成！"
+          echo ""
+          echo "访问地址："
+          echo "  http://${{ secrets.PRODUCTION_SERVER_HOST }}"
+          echo ""
+          EOF
+        env:
+          DEPLOY_DIR: ${{ secrets.PRODUCTION_DEPLOY_DIR || '/var/www/chatwoot_flutter' }}
+
+      - name: 清理临时文件
+        if: always()
+        run: |
+          rm -f deploy_package.tar.gz
+          rm -f ~/.ssh/deploy_key
+
+      - name: 部署成功通知
+        if: success()
+        run: |
+          echo "✅ 生产环境部署成功！"
+          echo "访问地址: http://${{ secrets.PRODUCTION_SERVER_HOST }}"
+
+      - name: 部署失败通知
+        if: failure()
+        run: |
+          echo "❌ 生产环境部署失败！"
+          exit 1
+
