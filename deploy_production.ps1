@@ -242,3 +242,6 @@ Write-Host "  3. 配置域名解析" -ForegroundColor White
 Write-Host "  4. 定期备份数据" -ForegroundColor White
 Write-Host ""
 
+
+
+

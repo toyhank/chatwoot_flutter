@@ -8,7 +8,8 @@ plugins {
 android {
     namespace = "com.example.testcrm_flutter"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // 使用插件要求的最新 NDK 版本（向后兼容）
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

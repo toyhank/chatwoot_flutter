@@ -1,15 +1,13 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import '../../config/app_config.dart';
+import '../../utils/storage_util.dart';
 
-// Web平台专用导入
-import 'dart:ui_web' as ui_web;
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-
-/// Chatwoot 客服页面
-/// 参考: https://medium.com/@mehulcs/chatwoot-integration-in-flutter-without-a-third-party-package-e8a5d114dec3
+/// Chatwoot 客服页面 - 使用 InAppWebView 直接加载 widget
 class CustomerServicePage extends StatefulWidget {
   const CustomerServicePage({super.key});
 
@@ -18,347 +16,64 @@ class CustomerServicePage extends StatefulWidget {
 }
 
 class _CustomerServicePageState extends State<CustomerServicePage> {
-  late WebViewController _controller;
+  InAppWebViewController? _webViewController;
   bool _isLoading = true;
-  bool _hasError = false;
-  String _errorMessage = '';
-  final String _webViewId = 'chatwoot-iframe-${DateTime.now().millisecondsSinceEpoch}';
 
-  @override
-  void initState() {
-    super.initState();
-    _initializeWebView();
-  }
+  /// 构建 Chatwoot widget URL
+  Future<String> get _webviewURL async {
+    // 获取用户信息
+    final userId = await AppConfig.getUserId();
+    final userName = await AppConfig.getUserName();
+    final userEmail = await AppConfig.getUserEmail();
+    
+    // 构建基础 URL
+    String widgetUrl =
+        '${AppConfig.chatwootBaseUrl}/widget?website_token=${AppConfig.chatwootWebsiteToken}&locale=zh_CN';
 
-  /// 初始化 WebView（参考 Medium 文章方法）
-  Future<void> _initializeWebView() async {
-    if (kIsWeb) {
-      // Web 平台直接注入脚本
-      await _injectChatwootForWeb();
-      return;
-    }
-
+    // 生成 HMAC 并构建用户数据
     try {
-      // 获取用户信息（从登录接口返回的信息中获取）
-      final userId = await AppConfig.getUserId();
-      final userName = await AppConfig.getUserName();
-      final userEmail = await AppConfig.getUserEmail();
-
-      // 创建 WebView 控制器
-      _controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(Colors.white)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onPageStarted: (String url) {
-              debugPrint('📄 页面开始加载: $url');
-            },
-            onPageFinished: (String url) {
-              debugPrint('✅ 页面加载完成');
-              if (mounted) {
-                setState(() => _isLoading = false);
-              }
-            },
-            onWebResourceError: (WebResourceError error) {
-              debugPrint('❌ 资源加载错误: ${error.description}');
-              if (mounted) {
-                setState(() {
-                  _hasError = true;
-                  _errorMessage = '加载失败: ${error.description}';
-                  _isLoading = false;
-                });
-              }
-            },
-          ),
-        );
-
-      // 生成 HTML 内容
-      final html = _generateChatwootHTML(
-        baseUrl: AppConfig.chatwootBaseUrl,
-        websiteToken: AppConfig.chatwootWebsiteToken,
-        userId: userId,
-        userName: userName,
-        userEmail: userEmail,
-        hmacToken: AppConfig.chatwootHmacToken,
-      );
-
-      // 加载 HTML
-      await _controller.loadHtmlString(html);
-      
-      if (mounted) setState(() {});
+      final hmacToken = AppConfig.chatwootHmacToken;
+      if (hmacToken.isNotEmpty && hmacToken != 'CHATWOOT_HMAC_TOKEN') {
+        // 生成 HMAC（基于 email，与 Chatwoot 后台设置一致）
+        final identifierHash = _generateHMAC(hmacToken, userEmail);
+        
+        // 构建包含用户信息和 HMAC 的 JSON 对象（按照官方格式）
+        final userData = {
+          'identifier_hash': identifierHash,  // HMAC 签名
+          'user_id': userId,                   // 用户 ID
+          'email': userEmail,                  // 邮箱
+          'name': userName,                    // 姓名
+          // 'avatar_url': '...',              // 可选：头像 URL
+        };
+        
+        // 转换为 JSON 字符串
+        final jsonString = jsonEncode(userData);
+        
+        // Base64 编码
+        final base64Encoded = base64Encode(utf8.encode(jsonString));
+        
+        // 添加到 URL
+        widgetUrl = '$widgetUrl&cw_conversation=$base64Encoded';
+        
+        debugPrint('🔐 已添加 HMAC 用户信息 (基于email): $userName <$userEmail>');
+        debugPrint('📦 Base64: ${base64Encoded.substring(0, 50)}...');
+      } else {
+        debugPrint('⚠️ HMAC token 未配置，使用无鉴权模式');
+      }
     } catch (e) {
-      debugPrint('❌ 初始化失败: $e');
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
+      debugPrint('⚠️ 生成用户数据失败: $e');
     }
+
+    return widgetUrl;
   }
 
-  /// 生成 Chatwoot HTML（使用 SDK 强制保持展开状态）
-  String _generateChatwootHTML({
-    required String baseUrl,
-    required String websiteToken,
-    required String userId,
-    required String userName,
-    required String userEmail,
-    required String hmacToken,
-  }) {
-    // 转义字符串以防止 XSS
-    final safeUserName = _escapeHtml(userName);
-    final safeUserEmail = _escapeHtml(userEmail);
-    final safeUserId = _escapeHtml(userId);
-    final safeHmacToken = _escapeHtml(hmacToken);
-
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>客服支持</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #fff;
-    }
-    
-    /* 隐藏 Chatwoot 的浮动按钮，只显示聊天窗口 */
-    .woot-widget-bubble {
-      display: none !important;
-    }
-    
-    /* 让聊天窗口占满整个屏幕 */
-    .woot--bubble-holder {
-      bottom: 0 !important;
-      right: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      max-height: 100% !important;
-    }
-    
-    .woot-widget-holder {
-      width: 100% !important;
-      height: 100% !important;
-      max-height: 100% !important;
-      box-shadow: none !important;
-      border-radius: 0 !important;
-    }
-    
-    iframe.woot-widget {
-      width: 100% !important;
-      height: 100% !important;
-      max-height: 100% !important;
-    }
-    
-    #loading {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      font-family: system-ui, -apple-system, sans-serif;
-      z-index: 99999;
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-    }
-    
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid #e0e0e0;
-      border-top-color: #1f93ff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 16px;
-    }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    #loading.hide {
-      display: none;
-    }
-  </style>
-</head>
-<body>
-  <div id="loading">
-    <div class="spinner"></div>
-    <p style="color: #666;">正在连接客服...</p>
-  </div>
-
-  <script>
-    // 生成 HMAC-SHA256（仅测试用，生产建议后端生成 hash）
-    async function generateHMAC(key, message) {
-      if (!window.crypto?.subtle) {
-        throw new Error('当前环境不支持 Web Crypto');
-      }
-      const encoder = new TextEncoder();
-      const cryptoKey = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode(key),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-      );
-      const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
-      return Array.from(new Uint8Array(signature))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-    }
-    
-    (function(d,t) {
-      var BASE_URL = "$baseUrl";
-      var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
-      g.src = BASE_URL + "/packs/js/sdk.js";
-      g.defer = true;
-      g.async = true;
-      
-      g.onload = function() {
-        console.log('✅ Chatwoot SDK 加载成功');
-        
-        // 初始化 Chatwoot
-        window.chatwootSDK.run({
-          websiteToken: '$websiteToken',
-          baseUrl: BASE_URL
-        });
-        
-        // 等待 Chatwoot 就绪
-        window.addEventListener('chatwoot:ready', async function() {
-          console.log('✅ Chatwoot 就绪');
-          
-          // 设置用户信息
-          const userData = {
-            name: '$safeUserName',
-            email: '$safeUserEmail'
-          };
-          
-          if ('$safeHmacToken' && '$safeHmacToken' !== 'CHATWOOT_HMAC_TOKEN') {
-            try {
-              userData.identifier_hash = await generateHMAC('$safeHmacToken', '$safeUserId');
-              console.log('🔐 已生成前端 HMAC identifier_hash');
-            } catch (hashErr) {
-              console.warn('⚠️ 生成 HMAC 失败（继续无鉴权）:', hashErr?.message || hashErr);
-            }
-          }
-          
-          window.\$chatwoot.setUser('$safeUserId', userData);
-          
-          // 设置语言
-          window.\$chatwoot.setLocale('zh_CN');
-          
-          // 强制打开并保持展开状态
-          window.\$chatwoot.toggle('open');
-          
-          // 隐藏加载动画
-          setTimeout(function() {
-            document.getElementById('loading').classList.add('hide');
-          }, 500);
-          
-          console.log('💬 聊天窗口已强制展开');
-        });
-        
-        // 监听所有 Chatwoot 事件，防止窗口关闭
-        window.addEventListener('chatwoot:on-message', function() {
-          // 确保窗口始终打开
-          if (window.\$chatwoot && window.\$chatwoot.isOpen && !window.\$chatwoot.isOpen()) {
-            window.\$chatwoot.toggle('open');
-            console.log('🔄 检测到窗口关闭，重新打开');
-          }
-        });
-        
-        // 定期检查并保持窗口打开（每2秒检查一次）
-        setInterval(function() {
-          if (window.\$chatwoot && window.\$chatwoot.isOpen && !window.\$chatwoot.isOpen()) {
-            window.\$chatwoot.toggle('open');
-            console.log('🔄 定期检查：重新打开聊天窗口');
-          }
-        }, 2000);
-      };
-      
-      g.onerror = function() {
-        console.error('❌ SDK 加载失败');
-        document.getElementById('loading').innerHTML = 
-          '<p style="color: #f44336;">无法连接到客服系统<br>请检查网络连接</p>';
-      };
-      
-      s.parentNode.insertBefore(g, s);
-    })(document, "script");
-  </script>
-</body>
-</html>
-    ''';
-  }
-
-  /// HTML 转义，防止 XSS 攻击
-  String _escapeHtml(String text) {
-    return text
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;');
-  }
-
-  /// Web 平台：注册 iframe 视图（使用 SDK 方式）
-  Future<void> _injectChatwootForWeb() async {
-    try {
-      // 获取用户信息（从登录接口返回的信息中获取）
-      final userId = await AppConfig.getUserId();
-      final userName = await AppConfig.getUserName();
-      final userEmail = await AppConfig.getUserEmail();
-
-      // 生成完整的HTML内容
-      final htmlContent = _generateChatwootHTML(
-        baseUrl: AppConfig.chatwootBaseUrl,
-        websiteToken: AppConfig.chatwootWebsiteToken,
-        userId: userId,
-        userName: userName,
-        userEmail: userEmail,
-        hmacToken: AppConfig.chatwootHmacToken,
-      );
-
-      // 注册平台视图
-      // ignore: undefined_prefixed_name
-      ui_web.platformViewRegistry.registerViewFactory(
-        _webViewId,
-        (int viewId) {
-          final iframe = html.IFrameElement()
-            ..srcdoc = htmlContent
-            ..style.border = 'none'
-            ..style.width = '100%'
-            ..style.height = '100%'
-            ..allow = 'microphone; camera; clipboard-write;';
-          
-          return iframe;
-        },
-      );
-
-      debugPrint('✅ Chatwoot SDK 视图已注册');
-      if (mounted) setState(() => _isLoading = false);
-    } catch (e) {
-      debugPrint('❌ Web平台初始化失败: $e');
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
+  /// 生成 HMAC-SHA256
+  String _generateHMAC(String secret, String message) {
+    final key = utf8.encode(secret);
+    final bytes = utf8.encode(message);
+    final hmac = crypto.Hmac(crypto.sha256, key);
+    final digest = hmac.convert(bytes);
+    return digest.toString();
   }
 
   @override
@@ -368,108 +83,200 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
         title: const Text('在线客服'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        actions: !kIsWeb ? [
+        actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              setState(() {
-                _isLoading = true;
-                _hasError = false;
-              });
-              _initializeWebView();
+              _webViewController?.reload();
             },
           ),
-        ] : null,
+        ],
       ),
       backgroundColor: Colors.white,
-      body: _buildBody(),
+      body: Stack(
+        children: [
+          FutureBuilder<String>(
+            future: _webviewURL,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              return InAppWebView(
+                initialSettings: InAppWebViewSettings(
+                  isInspectable: kDebugMode,
+                  javaScriptEnabled: true,
+                  domStorageEnabled: true,
+                  useHybridComposition: true, // Android 性能优化
+                  allowsInlineMediaPlayback: true,
+                  mediaPlaybackRequiresUserGesture: false,
+                ),
+                initialUrlRequest: URLRequest(
+                  url: WebUri(snapshot.data!),
+                ),
+                onWebViewCreated: (controller) async {
+                  _webViewController = controller;
+                  debugPrint('✅ InAppWebView 已创建');
+
+                  // 仅 Android 平台添加 WebMessageListener
+                  if (Platform.isAndroid) {
+                    bool isFeatureSupported = true;
+                    try {
+                      isFeatureSupported = await AndroidWebViewFeature.isFeatureSupported(
+                        AndroidWebViewFeature.WEB_MESSAGE_LISTENER,
+                      );
+                    } catch (e) {
+                      debugPrint('⚠️ WebMessageListener 检查失败: $e');
+                    }
+
+                    if (isFeatureSupported) {
+                      try {
+                        await controller.addWebMessageListener(
+                          WebMessageListener(
+                            jsObjectName: 'ReactNativeWebView',
+                            onPostMessage: (message, sourceOrigin, isMainFrame, replyProxy) {
+                              _handleChatwootMessage(message);
+                            },
+                          ),
+                        );
+                        debugPrint('✅ WebMessageListener 已添加');
+                      } catch (e) {
+                        debugPrint('⚠️ 添加 WebMessageListener 失败: $e');
+                      }
+                    } else {
+                      debugPrint('⚠️ 设备不支持 WebMessageListener');
+                    }
+                  }
+                },
+                onLoadStart: (controller, url) {
+                  debugPrint('📄 开始加载: $url');
+                  if (mounted) {
+                    setState(() => _isLoading = true);
+                  }
+                },
+                onLoadStop: (controller, url) async {
+                  debugPrint('✅ 加载完成: $url');
+                  if (mounted) {
+                    setState(() => _isLoading = false);
+                  }
+                },
+                onLoadError: (controller, url, code, message) {
+                  debugPrint('❌ 加载错误: $message');
+                  if (mounted) {
+                    setState(() => _isLoading = false);
+                  }
+                },
+                onConsoleMessage: (controller, consoleMessage) {
+                  debugPrint('📝 Console: ${consoleMessage.message}');
+                },
+              );
+            },
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.white,
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('正在加载...', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _buildBody() {
-    // 错误状态
-    if (_hasError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              const Text(
-                '无法连接到客服系统',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _errorMessage,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _hasError = false;
-                    _isLoading = true;
-                  });
-                  _initializeWebView();
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('重试'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(AppConfig.primaryColor),
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+  /// 处理 Chatwoot 消息
+  void _handleChatwootMessage(WebMessage? message) {
+    if (message == null || message.data == null) return;
 
-    // Web 平台：使用 HtmlElementView 显示 iframe
-    if (kIsWeb) {
-      if (_isLoading) {
-        return const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('正在加载客服系统...', style: TextStyle(color: Colors.grey)),
-            ],
-          ),
-        );
+    try {
+      String content = message.data.toString().replaceFirst('chatwoot-widget:', '');
+      dynamic decoded = jsonDecode(content);
+
+      debugPrint('📩 收到 Chatwoot 消息: $decoded');
+
+      // 用户点击关闭按钮
+      if (decoded['type'] == 'close-widget') {
+        Navigator.of(context).pop();
+        return;
       }
-      
-      return HtmlElementView(viewType: _webViewId);
-    }
 
-    // 移动端：WebView
-    return Stack(
-      children: [
-        WebViewWidget(controller: _controller),
-        if (_isLoading)
-          Container(
-            color: Colors.white,
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('正在加载...', style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
+      // Widget 加载完成
+      if (decoded['event'] == 'loaded') {
+        debugPrint('✅ Chatwoot Widget 已加载');
+        
+        // 保存会话 token
+        final authToken = decoded['config']?['authToken'];
+        if (authToken != null) {
+          StorageUtil.setString('chatwoot_session_token', authToken);
+          debugPrint('💾 已保存会话 token');
+        }
+
+        // Widget 加载完成后立即设置用户信息
+        // 延迟 500ms 确保 $chatwoot 对象完全初始化
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (_webViewController != null) {
+            _setUserInfo(_webViewController!);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('⚠️ 处理消息失败: $e');
+    }
+  }
+
+  /// 设置用户信息
+  Future<void> _setUserInfo(InAppWebViewController controller) async {
+    try {
+      debugPrint('🔧 开始设置用户信息...');
+      
+      // 获取用户信息
+      final userId = await AppConfig.getUserId();
+      final userName = await AppConfig.getUserName();
+      final userEmail = await AppConfig.getUserEmail();
+
+      debugPrint('👤 用户信息: userId=$userId, name=$userName, email=$userEmail');
+
+      // 等待确保 $chatwoot 对象完全初始化（loaded 事件触发后很快就绪）
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // 转义用户信息中的特殊字符
+      final safeUserId = userId.replaceAll("'", "\\'");
+      final safeUserName = userName.replaceAll("'", "\\'");
+      final safeUserEmail = userEmail.replaceAll("'", "\\'");
+
+      // 通过 JavaScript 设置用户信息
+      final jsCode = '''
+        (function() {
+          try {
+            console.log('🔧 尝试设置用户信息...');
+            if (window.\$chatwoot) {
+              console.log('✅ Chatwoot 对象存在');
+              window.\$chatwoot.setUser('$safeUserId', {
+                name: '$safeUserName',
+                email: '$safeUserEmail'
+              });
+              console.log('✅ 用户信息已设置: $safeUserName ($safeUserEmail)');
+              window.\$chatwoot.setLocale('zh_CN');
+            } else {
+              console.error('❌ Chatwoot 对象不存在');
+            }
+          } catch (e) {
+            console.error('❌ 设置用户信息失败:', e.toString());
+          }
+        })();
+      ''';
+
+      await controller.evaluateJavascript(source: jsCode);
+      debugPrint('✅ JavaScript 已执行');
+    } catch (e) {
+      debugPrint('⚠️ 设置用户信息失败: $e');
+    }
   }
 }

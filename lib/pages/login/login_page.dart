@@ -24,8 +24,8 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     // 设置默认测试账号（开发环境）
-    _usernameController.text = 'test@example.com';
-    _passwordController.text = 'Test123!@#';
+    _usernameController.text = 'yushuangqi@hotmail.com';
+    _passwordController.text = 'Tt112211@';
   }
 
   @override
