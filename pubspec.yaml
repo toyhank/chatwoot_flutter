@@ -66,6 +66,13 @@ dependencies:
   # 加载动画
   flutter_spinkit: ^5.2.0
 
+  # Firebase 推送通知
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.1.5
+  
+  # 本地通知支持（用于前台推送消息显示）
+  flutter_local_notifications: ^18.0.1
+
   # Chatwoot 使用 WebView 集成（支持全平台）
   # webview_flutter 已在上面声明
 

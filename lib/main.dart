@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'config/theme.dart';
+import 'config/app_config.dart';
 import 'utils/storage_util.dart';
+import 'services/push_notification_service.dart';
 import 'pages/main_page.dart';
 import 'pages/login/login_page.dart';
 import 'pages/register/register_page.dart';
@@ -10,6 +12,18 @@ void main() async {
 
   // 初始化本地存储
   await StorageUtil.init();
+
+  // 初始化推送通知服务（包含 Chatwoot 集成）
+  try {
+    await PushNotificationService.initialize(
+      chatwootBaseUrl: AppConfig.chatwootBaseUrl,
+      websiteToken: AppConfig.chatwootWebsiteToken,
+    );
+    
+    debugPrint('✅ 推送通知服务初始化完成');
+  } catch (e) {
+    debugPrint('⚠️ 推送服务初始化失败，应用将继续运行: $e');
+  }
 
   runApp(const MyApp());
 }

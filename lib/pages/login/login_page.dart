@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/storage_util.dart';
 import '../../services/api_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../config/app_config.dart';
 import 'dart:convert';
 
@@ -303,6 +304,30 @@ class _LoginPageState extends State<LoginPage> {
     }
     if (user.email != null) {
       await StorageUtil.setString('userEmail', user.email!);
+    }
+    
+    // 注册推送 Token 到 Chatwoot（异步执行，不阻塞登录流程）
+    _registerPushToken();
+  }
+
+  /// 注册推送通知 Token
+  Future<void> _registerPushToken() async {
+    try {
+      final email = await AppConfig.getUserEmail();
+      final name = await AppConfig.getUserName();
+      
+      final success = await PushNotificationService.registerPushToken(
+        contactIdentifier: email,
+        name: name,
+      );
+      
+      if (success) {
+        debugPrint('✅ 推送 Token 注册成功');
+      } else {
+        debugPrint('⚠️ 推送 Token 注册失败');
+      }
+    } catch (e) {
+      debugPrint('❌ 注册推送 Token 错误: $e');
     }
   }
 }

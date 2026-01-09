@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:crypto/crypto.dart' as crypto;
 import '../../config/app_config.dart';
 import '../../utils/storage_util.dart';
+import '../../services/firebase_service.dart';
 
 /// Chatwoot 客服页面 - 使用 InAppWebView 直接加载 widget
 class CustomerServicePage extends StatefulWidget {
@@ -30,38 +31,26 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     String widgetUrl =
         '${AppConfig.chatwootBaseUrl}/widget?website_token=${AppConfig.chatwootWebsiteToken}&locale=zh_CN';
 
-    // 生成 HMAC 并构建用户数据
+    // 使用服务端支持的URL参数传递HMAC和用户信息
     try {
       final hmacToken = AppConfig.chatwootHmacToken;
       if (hmacToken.isNotEmpty && hmacToken != 'CHATWOOT_HMAC_TOKEN') {
-        // 生成 HMAC（基于 email，与 Chatwoot 后台设置一致）
+        // 生成 HMAC（基于 email）
         final identifierHash = _generateHMAC(hmacToken, userEmail);
         
-        // 构建包含用户信息和 HMAC 的 JSON 对象（按照官方格式）
-        final userData = {
-          'identifier_hash': identifierHash,  // HMAC 签名
-          'user_id': userId,                   // 用户 ID
-          'email': userEmail,                  // 邮箱
-          'name': userName,                    // 姓名
-          // 'avatar_url': '...',              // 可选：头像 URL
-        };
+        // 服务端新支持的URL参数方式
+        widgetUrl += '&identifier=${Uri.encodeComponent(userEmail)}'; // 使用email作为identifier
+        widgetUrl += '&identifier_hash=$identifierHash';
+        widgetUrl += '&email=${Uri.encodeComponent(userEmail)}';
+        widgetUrl += '&name=${Uri.encodeComponent(userName)}';
         
-        // 转换为 JSON 字符串
-        final jsonString = jsonEncode(userData);
-        
-        // Base64 编码
-        final base64Encoded = base64Encode(utf8.encode(jsonString));
-        
-        // 添加到 URL
-        widgetUrl = '$widgetUrl&cw_conversation=$base64Encoded';
-        
-        debugPrint('🔐 已添加 HMAC 用户信息 (基于email): $userName <$userEmail>');
-        debugPrint('📦 Base64: ${base64Encoded.substring(0, 50)}...');
+        debugPrint('URL参数方式: identifier=$userEmail, hash=${identifierHash.substring(0, 10)}...');
+        debugPrint('用户: $userName <$userEmail>');
       } else {
-        debugPrint('⚠️ HMAC token 未配置，使用无鉴权模式');
+        debugPrint('[Warning] HMAC token not configured');
       }
     } catch (e) {
-      debugPrint('⚠️ 生成用户数据失败: $e');
+      debugPrint('[Error] HMAC generation failed: $e');
     }
 
     return widgetUrl;
@@ -218,11 +207,12 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
           debugPrint('💾 已保存会话 token');
         }
 
-        // Widget 加载完成后立即设置用户信息
+        // Widget 加载完成后立即设置用户信息和 FCM Token
         // 延迟 500ms 确保 $chatwoot 对象完全初始化
         Future.delayed(const Duration(milliseconds: 500), () {
           if (_webViewController != null) {
             _setUserInfo(_webViewController!);
+            _sendFCMTokenToChatwoot(_webViewController!);
           }
         });
       }
@@ -277,6 +267,58 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
       debugPrint('✅ JavaScript 已执行');
     } catch (e) {
       debugPrint('⚠️ 设置用户信息失败: $e');
+    }
+  }
+
+  /// 发送 FCM Token 到 Chatwoot
+  Future<void> _sendFCMTokenToChatwoot(InAppWebViewController controller) async {
+    try {
+      debugPrint('📤 开始发送 FCM Token 到 Chatwoot...');
+      
+      // 获取 FCM Token
+      final firebaseService = FirebaseService();
+      final fcmToken = await firebaseService.getCurrentToken();
+      
+      if (fcmToken == null || fcmToken.isEmpty) {
+        debugPrint('⚠️ FCM Token 不可用，跳过发送');
+        return;
+      }
+
+      debugPrint('📱 FCM Token: ${fcmToken.substring(0, 20)}...');
+
+      // 等待确保 $chatwoot 对象完全初始化
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // 转义 Token 中的特殊字符
+      final safeToken = fcmToken.replaceAll("'", "\\'");
+
+      // 通过 JavaScript 将 Token 发送给 Chatwoot
+      final jsCode = '''
+        (function() {
+          try {
+            console.log('📤 尝试发送 FCM Token 到 Chatwoot...');
+            if (window.\$chatwoot && window.\$chatwoot.setCustomAttributes) {
+              // 使用自定义属性保存 FCM Token
+              window.\$chatwoot.setCustomAttributes({
+                fcm_token: '$safeToken',
+                push_platform: 'android'
+              });
+              console.log('✅ FCM Token 已发送');
+            } else if (window.\$chatwoot) {
+              console.warn('⚠️ setCustomAttributes 方法不可用');
+            } else {
+              console.error('❌ Chatwoot 对象不存在');
+            }
+          } catch (e) {
+            console.error('❌ 发送 FCM Token 失败:', e.toString());
+          }
+        })();
+      ''';
+
+      await controller.evaluateJavascript(source: jsCode);
+      debugPrint('✅ FCM Token 已发送到 Chatwoot');
+    } catch (e) {
+      debugPrint('⚠️ 发送 FCM Token 失败: $e');
     }
   }
 }
