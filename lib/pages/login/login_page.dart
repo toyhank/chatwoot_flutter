@@ -319,6 +319,7 @@ class _LoginPageState extends State<LoginPage> {
       final success = await PushNotificationService.registerPushToken(
         contactIdentifier: email,
         name: name,
+        email: email, // 传递 email 以启用跨设备会话合并
       );
       
       if (success) {

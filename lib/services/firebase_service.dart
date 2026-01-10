@@ -72,7 +72,8 @@ class FirebaseService {
         debugPrint('⚠️ FCM Token 为空');
       }
 
-      // 监听 Token 刷新
+      // ⭐ 监听 Token 刷新（仅更新本地存储）
+      // 注意：自动上传到 Chatwoot 服务器的逻辑在 PushNotificationService 中处理
       FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
         debugPrint('🔄 FCM Token 已刷新: $newToken');
         _fcmToken = newToken;
@@ -163,17 +164,7 @@ class FirebaseService {
     }
   }
 
-  /// 删除 FCM Token（用户登出时调用）
-  Future<void> deleteToken() async {
-    try {
-      await FirebaseMessaging.instance.deleteToken();
-      _fcmToken = null;
-      await StorageUtil.remove(_fcmTokenKey);
-      debugPrint('✅ FCM Token 已删除');
-    } catch (e) {
-      debugPrint('❌ 删除 FCM Token 失败: $e');
-    }
-  }
+
 }
 
 /// 后台消息处理器（必须是顶级函数）

@@ -22,40 +22,36 @@ Widget API 需要两个认证参数：
 
 ## 📍 正确的 API 调用方式
 
-### 第一步：初始化 Widget 并获取 Auth Token
+### 第一步：创建 Contact 并获取 Auth Token
 
-首次使用 Widget 时，需要调用 config API 来创建 contact 并获取认证令牌：
+首先需要通过 Widget API 创建或获取一个 contact，这会返回 `X-Auth-Token`：
 
 ```http
-POST /api/v1/widget/config
+POST /api/v1/widget/contacts
 Content-Type: application/json
 
 {
-  "website_token": "YOUR_WEBSITE_TOKEN"
+  "website_token": "YOUR_WEBSITE_TOKEN",
+  "contact": {
+    "email": "user@example.com",
+    "name": "Test User"
+  }
 }
 ```
 
-**响应示例**（简化）:
+**响应示例**：
+
 ```json
 {
-  "website_channel_config": {
-    "auth_token": "eyJhbGciOiJIUzI1NiJ9.eyJzb3VyY2VfaWQiOi4uLiwiaW5ib3hfaWQiOjF9...",
-    "website_token": "GJFzMx6qnv9DFpaspRpFDRDt",
-    "widget_color": "#1f93ff",
-    // ... 其他 widget 配置
-  },
-  "contact": {
-    "id": 39,
-    "name": "crimson-cloud-726",
-    "email": null,
-    "phone_number": null,
-    "pubsub_token": "hXfXtakNx..."
-  },
-  "global_config": { ... }
+  "id": 123,
+  "name": "Test User",
+  "email": "user@example.com",
+  "pubsub_token": "abc123...",
+  "source_id": "contact_source_id"
 }
 ```
 
-**重要**：auth token 在 `website_channel_config.auth_token` 字段中。
+同时，响应头会包含 `X-Auth-Token`，需要保存这个 token。
 
 ### 第二步：注册推送订阅
 
@@ -89,14 +85,19 @@ X-Auth-Token: YOUR_CONTACT_AUTH_TOKEN
 ### 2. 使用 cURL 测试
 
 ```bash
-# 第一步：初始化 Widget 并获取 auth token
-curl -X POST http://127.0.0.1:8080/api/v1/widget/config \
+# 第一步：创建 contact 并获取 auth token
+curl -X POST http://127.0.0.1:8080/api/v1/widget/contacts \
   -H "Content-Type: application/json" \
+  -v \
   -d '{
-    "website_token": "YOUR_WEBSITE_TOKEN"
+    "website_token": "YOUR_WEBSITE_TOKEN",
+    "contact": {
+      "email": "test@example.com",
+      "name": "Test User"
+    }
   }'
 
-# 从响应 JSON 中提取 auth_token（在 website_channel_config.auth_token）
+# 从响应头复制 X-Auth-Token 值
 
 # 第二步：注册推送（使用上一步获取的 X-Auth-Token）
 curl -X POST http://127.0.0.1:8080/api/v1/widget/push_subscriptions \
@@ -138,7 +139,10 @@ class ChatwootService {
   });
 
   /// 步骤1: 初始化 Widget 并获取 contact
-  Future<bool> initializeWidget() async {
+  ///
+  /// ⭐ 重要：传递 email 参数可以让 Chatwoot 自动合并相同邮箱的 Contacts
+  /// 这样无论在哪个设备登录，都会使用同一个会话和推送订阅
+  Future<bool> initializeWidget({String? email, String? name}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/api/v1/widget/config'),
@@ -147,13 +151,18 @@ class ChatwootService {
           'website_token': websiteToken,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         // 从响应 JSON 获取 auth token
         final data = json.decode(response.body);
         _authToken = data['website_channel_config']['auth_token'];
 
-        // 也可以保存到本地存储
+        // 如果提供了 email，更新 contact 信息以启用自动合并
+        if (email != null) {
+          await updateContact(email: email, name: name);
+        }
+
+        // 保存到本地存储
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('chatwoot_auth_token', _authToken!);
 
@@ -167,6 +176,31 @@ class ChatwootService {
     }
   }
 
+  /// 更新 Contact 信息（用于启用 email 合并）
+  Future<bool> updateContact({String? email, String? name}) async {
+    if (_authToken == null) return false;
+
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/v1/widget/contact'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _authToken!,
+        },
+        body: json.encode({
+          'website_token': websiteToken,
+          if (email != null) 'email': email,
+          if (name != null) 'name': name,
+        }),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('❌ 更新 Contact 失败: $e');
+      return false;
+    }
+  }
+
   /// 步骤2: 注册推送订阅
   Future<bool> registerPushToken(String fcmToken, String deviceId) async {
     // 确保已有 auth token
@@ -175,7 +209,7 @@ class ChatwootService {
       _authToken = prefs.getString('chatwoot_auth_token');
 
       if (_authToken == null) {
-        print('❌ 缺少 auth token，请先初始化 Widget');
+        print('❌ 缺少 auth token，请先初始化 contact');
         return false;
       }
     }
@@ -234,13 +268,6 @@ class ChatwootService {
 ### 使用示例
 
 ```dart
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-// 假设 ChatwootService 和 PushNotificationService 在其他文件中定义
-// import 'chatwoot_service.dart';
-// import 'push_notification_service.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -251,11 +278,14 @@ void main() async {
     websiteToken: 'YOUR_WEBSITE_TOKEN', // 从后台获取
   );
 
-  // 第一步：初始化 Widget
-  await chatwoot.initializeWidget();
+  // 第一步：初始化 contact
+  await chatwoot.initializeContact(
+    email: 'user@example.com',
+    name: 'Test User',
+  );
 
   // 第二步：初始化推送
-  // await PushNotificationService.initialize(); // 假设有此服务
+  await PushNotificationService.initialize();
 
   // 第三步：获取 FCM token 并注册
   String? fcmToken = await FirebaseMessaging.instance.getToken();
@@ -267,18 +297,6 @@ void main() async {
   }
 
   runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: Text('Chatwoot Push Test')),
-        body: Center(child: Text('Check console for Chatwoot logs')),
-      ),
-    );
-  }
 }
 ```
 
@@ -298,18 +316,19 @@ class MyApp extends StatelessWidget {
 
 ### Q3: 如何获取 X-Auth-Token？
 
-**A**: 
-1. 调用 `POST /api/v1/widget/config` 初始化 Widget
-2. 从响应 JSON 的 `website_channel_config.auth_token` 字段获取
-3. 保存到本地（如 SharedPreferences）用于后续 API 调用
+**A**:
+
+1. 首次创建 contact 时，服务器会在响应头返回
+2. 需要保存这个 token 用于后续 API 调用
+3. 可以存储在 SharedPreferences 中
 
 ### Q4: Contact 是什么？
 
-**A**: Contact 代表使用 Widget 的客户。初始化 Widget 时会自动创建一个匿名 contact，后续可通过 `PATCH /api/v1/widget/contact` 更新其信息（email、name 等）。
+**A**: Contact 代表使用 Widget 的客户。每个客户都有唯一的 `source_id` 和 `auth_token`。
 
-### Q5: 可以跳过初始化直接注册推送吗？
+### Q5: 可以跳过 Contact 创建直接注册推送吗？
 
-**A**: 不可以。必须先调用 `/config` 初始化 Widget 获取 auth token，因为推送订阅需要关联到具体的 contact。
+**A**: 不可以。Widget API 的设计要求先创建 contact，因为推送订阅需要关联到具体的 contact 和 contact_inbox。
 
 ## 📊 API 路由验证
 
@@ -334,15 +353,19 @@ api_v1_widget_push_subscription  DELETE  /api/v1/widget/push_subscriptions/:id
 WEBSITE_TOKEN="your_website_token_here"
 BASE_URL="http://127.0.0.1:8080"
 
-# 2. 初始化 Widget
-RESPONSE=$(curl -s -X POST "$BASE_URL/api/v1/widget/config" \
+# 2. 创建 contact
+RESPONSE=$(curl -i -X POST "$BASE_URL/api/v1/widget/contacts" \
   -H "Content-Type: application/json" \
   -d "{
-    \"website_token\": \"$WEBSITE_TOKEN\"
+    \"website_token\": \"$WEBSITE_TOKEN\",
+    \"contact\": {
+      \"email\": \"test@example.com\",
+      \"name\": \"Test User\"
+    }
   }")
 
-# 3. 提取 auth token
-AUTH_TOKEN=$(echo "$RESPONSE" | jq -r '.website_channel_config.auth_token')
+# 3. 提取 X-Auth-Token
+AUTH_TOKEN=$(echo "$RESPONSE" | grep -i "x-auth-token" | awk '{print $2}' | tr -d '\r')
 
 echo "Auth Token: $AUTH_TOKEN"
 

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'unread_message_notifier.dart';
 
 /// 后台消息处理器（必须是顶级函数）
 /// 
@@ -34,14 +35,17 @@ class PushNotificationService {
   static String? _fcmToken;
   static String? _chatwootBaseUrl;
   static String? _websiteToken;
+  static UnreadMessageNotifier? _unreadNotifier;
 
   /// 初始化推送服务
   static Future<void> initialize({
     required String chatwootBaseUrl,
     required String websiteToken,
+    UnreadMessageNotifier? unreadNotifier,
   }) async {
     _chatwootBaseUrl = chatwootBaseUrl;
     _websiteToken = websiteToken;
+    _unreadNotifier = unreadNotifier;
 
     debugPrint('🚀 初始化推送通知服务...');
 
@@ -79,11 +83,37 @@ class PushNotificationService {
       debugPrint('⚠️ FCM Token 为空');
     }
 
-    // Token 刷新监听
-    _messaging.onTokenRefresh.listen((newToken) {
+    // Token 刷新监听 ⭐ 自动更新到服务器
+    _messaging.onTokenRefresh.listen((newToken) async {
       debugPrint('🔄 Token 刷新: $newToken');
       _fcmToken = newToken;
-      // TODO: 自动更新到服务器
+      
+      // ⭐ 自动上传新 token 到 Chatwoot 服务器
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final lastRegisteredUser = prefs.getString('registered_contact_identifier');
+        
+        if (lastRegisteredUser != null && lastRegisteredUser.isNotEmpty) {
+          debugPrint('📤 自动上传新 Token 到服务器...');
+          
+          // 重新注册推送（会自动使用新 token）
+          final success = await registerPushToken(
+            contactIdentifier: lastRegisteredUser,
+            // 从本地存储获取用户信息
+            email: lastRegisteredUser,
+          );
+          
+          if (success) {
+            debugPrint('✅ Token 刷新后自动重新注册成功');
+          } else {
+            debugPrint('⚠️ Token 刷新后自动重新注册失败');
+          }
+        } else {
+          debugPrint('ℹ️ 未找到已注册用户，跳过自动上传');
+        }
+      } catch (e) {
+        debugPrint('❌ 自动上传新 Token 失败: $e');
+      }
     });
 
     // 设置消息处理
@@ -139,6 +169,9 @@ class PushNotificationService {
     debugPrint('  - 内容: ${message.notification?.body}');
     debugPrint('  - 数据: ${message.data}');
     
+    // 增加未读消息计数
+    _unreadNotifier?.incrementUnread();
+    
     _showNotification(message);
   }
 
@@ -171,7 +204,9 @@ class PushNotificationService {
   }
 
   /// 步骤1: 初始化 Widget 并获取 Auth Token
-  static Future<String?> _initializeWidget() async {
+  /// 
+  /// ⭐ 传递 email 参数可以让 Chatwoot 自动合并相同邮箱的 Contacts
+  static Future<String?> _initializeWidget({String? email, String? name}) async {
     if (_chatwootBaseUrl == null || _websiteToken == null) {
       debugPrint('❌ Chatwoot 配置未初始化');
       return null;
@@ -209,6 +244,18 @@ class PushNotificationService {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('chatwoot_auth_token', authToken.toString());
           
+          // 如果提供了 email，更新 contact 信息以启用自动合并
+          if (email != null) {
+            final updateSuccess = await _updateContact(
+              authToken: authToken.toString(),
+              email: email,
+              name: name,
+            );
+            if (updateSuccess) {
+              debugPrint('✅ Contact 信息已更新，email 合并已启用');
+            }
+          }
+          
           return authToken.toString();
         } else {
           debugPrint('⚠️ 响应中没有 auth_token');
@@ -233,10 +280,58 @@ class PushNotificationService {
     }
   }
 
+  /// 更新 Contact 信息（用于启用 email 合并）
+  static Future<bool> _updateContact({
+    required String authToken,
+    String? email,
+    String? name,
+  }) async {
+    if (_chatwootBaseUrl == null || _websiteToken == null) {
+      return false;
+    }
+
+    try {
+      debugPrint('📤 正在更新 Contact 信息...');
+      if (email != null) debugPrint('  - Email: $email');
+      if (name != null) debugPrint('  - Name: $name');
+
+      final response = await http.patch(
+        Uri.parse('$_chatwootBaseUrl/api/v1/widget/contact'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': authToken,
+        },
+        body: json.encode({
+          'website_token': _websiteToken,
+          if (email != null) 'email': email,
+          if (name != null) 'name': name,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('✅ Contact 更新成功');
+        return true;
+      } else {
+        debugPrint('⚠️ Contact 更新失败: ${response.statusCode}');
+        debugPrint('  - 响应: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ 更新 Contact 错误: $e');
+      return false;
+    }
+  }
+
   /// 步骤2: 注册推送 Token 到 Chatwoot 服务器
+  /// 
+  /// [contactIdentifier] 可以是 email 或其他唯一标识
+  /// [name] 用户名称
+  /// [email] 用户邮箱（推荐传递，可启用跨设备会话合并）
+  /// [deviceId] 设备唯一标识（可选）
   static Future<bool> registerPushToken({
     required String contactIdentifier,
     String? name,
+    String? email,
     String? deviceId,
   }) async {
     if (_fcmToken == null || _fcmToken!.isEmpty) {
@@ -252,17 +347,41 @@ class PushNotificationService {
     try {
       final prefs = await SharedPreferences.getInstance();
       
+      // 检查是否是同一个用户
+      final lastRegisteredUser = prefs.getString('registered_contact_identifier');
+      final isUserChanged = lastRegisteredUser != null && lastRegisteredUser != contactIdentifier;
+      
       // 先尝试从本地存储获取 auth token
       String? authToken = prefs.getString('chatwoot_auth_token');
       
-      // 如果没有 auth token，先初始化 Widget
+      // ⭐ 如果用户切换了，先删除旧用户的推送订阅
+      if (isUserChanged && authToken != null && authToken.isNotEmpty) {
+        debugPrint('🔄 检测到用户切换: $lastRegisteredUser → $contactIdentifier');
+        debugPrint('  - 正在删除旧用户的推送订阅...');
+        
+        // 使用旧的 auth token 删除旧订阅
+        await _deleteOldPushSubscription(authToken);
+        
+        // 清除旧的 auth token
+        debugPrint('  - 清除旧的 auth token，准备重新初始化');
+        await prefs.remove('chatwoot_auth_token');
+        authToken = null;
+      }
+      
+      // 如果没有 auth token，先初始化 Widget（并可选更新 email/name）
       if (authToken == null || authToken.isEmpty) {
-        authToken = await _initializeWidget();
+        debugPrint('📝 开始初始化 Widget 获取新的 auth token...');
+        authToken = await _initializeWidget(
+          email: email ?? contactIdentifier,
+          name: name,
+        );
         
         if (authToken == null) {
           debugPrint('❌ 无法获取 Auth Token');
           return false;
         }
+      } else {
+        debugPrint('ℹ️ 使用已保存的 auth token');
       }
 
       final actualDeviceId = deviceId ?? await _getDeviceId();
@@ -301,8 +420,11 @@ class PushNotificationService {
           debugPrint('🔄 Auth Token 可能过期，尝试重新获取...');
           await prefs.remove('chatwoot_auth_token');
           
-          // 重新获取 auth token
-          authToken = await _initializeWidget();
+          // 重新获取 auth token（传递完整参数）
+          authToken = await _initializeWidget(
+            email: email ?? contactIdentifier,
+            name: name,
+          );
           
           if (authToken != null) {
             // 重试注册
@@ -360,13 +482,23 @@ class PushNotificationService {
         return false;
       }
 
+      // ⭐ 获取设备 ID（删除时必须传递）
+      final deviceId = await _getDeviceId();
+      
       debugPrint('📤 正在取消推送订阅...');
+      debugPrint('  - Device ID: $deviceId');
 
       final response = await http.delete(
-        Uri.parse('$_chatwootBaseUrl/api/v1/widget/push_subscriptions/$_fcmToken'),
+        Uri.parse('$_chatwootBaseUrl/api/v1/widget/push_subscriptions'),
         headers: {
+          'Content-Type': 'application/json',
           'X-Auth-Token': authToken,
         },
+        body: json.encode({
+          'push_subscription': {
+            'device_id': deviceId,  // ⭐ 必须传递 device_id
+          }
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -382,6 +514,49 @@ class PushNotificationService {
     } catch (e) {
       debugPrint('❌ 取消订阅错误: $e');
       return false;
+    }
+  }
+
+  /// 删除旧用户的推送订阅（内部方法）
+  /// 
+  /// 在用户切换时使用旧的 auth token 删除旧订阅
+  static Future<void> _deleteOldPushSubscription(String oldAuthToken) async {
+    if (_fcmToken == null || _fcmToken!.isEmpty) {
+      debugPrint('  ⚠️ 无 FCM Token，跳过删除');
+      return;
+    }
+
+    if (_chatwootBaseUrl == null) {
+      debugPrint('  ⚠️ Chatwoot 配置未初始化，跳过删除');
+      return;
+    }
+
+    try {
+      // ⭐ 获取设备 ID
+      final deviceId = await _getDeviceId();
+      
+      final response = await http.delete(
+        Uri.parse('$_chatwootBaseUrl/api/v1/widget/push_subscriptions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': oldAuthToken,
+        },
+        body: json.encode({
+          'push_subscription': {
+            'device_id': deviceId,  // ⭐ 必须传递 device_id
+          }
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('  ✅ 旧用户的推送订阅已删除');
+      } else {
+        debugPrint('  ⚠️ 删除旧订阅失败: ${response.statusCode}');
+        debugPrint('  ℹ️ 这是正常的（旧订阅可能已不存在）');
+      }
+    } catch (e) {
+      debugPrint('  ⚠️ 删除旧订阅异常: $e');
+      debugPrint('  ℹ️ 将继续注册新用户');
     }
   }
 
@@ -407,5 +582,21 @@ class PushNotificationService {
     final prefs = await SharedPreferences.getInstance();
     final savedToken = prefs.getString('registered_push_token');
     return savedToken != null && savedToken == _fcmToken;
+  }
+
+  /// 清理 Chatwoot 相关数据
+  /// 
+  /// 在用户登出或切换账号时调用此方法，清除所有 Chatwoot 相关的本地数据
+  /// 这样可以确保下次登录时使用新账号的身份注册推送
+  static Future<void> clearChatwootData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('chatwoot_auth_token');
+      await prefs.remove('registered_push_token');
+      await prefs.remove('registered_contact_identifier');
+      debugPrint('🧹 Chatwoot 数据已清除');
+    } catch (e) {
+      debugPrint('❌ 清除 Chatwoot 数据失败: $e');
+    }
   }
 }
