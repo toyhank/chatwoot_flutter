@@ -1,5 +1,7 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'config/theme.dart';
 import 'config/app_config.dart';
 import 'utils/storage_util.dart';
@@ -14,6 +16,31 @@ void main() async {
 
   // 初始化本地存储
   await StorageUtil.init();
+
+  // 初始化 Firebase（使用平台特定配置）
+  try {
+    if (Platform.isIOS) {
+      // iOS 配置（从 GoogleService-Info.plist 提取）
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyCr5gSBLYbarDdjDKshe684tmTSl4elPMQ",
+          appId: "1:938639328662:ios:137258b304caff91cf49b7",
+          messagingSenderId: "938639328662",
+          projectId: "xcard-2b2ea",
+          storageBucket: "xcard-2b2ea.firebasestorage.app",
+          iosBundleId: "com.toyhank.xcard",
+        ),
+      );
+      debugPrint('✅ Firebase iOS 初始化成功');
+    } else {
+      // Android 配置（会自动读取 google-services.json）
+      await Firebase.initializeApp();
+      debugPrint('✅ Firebase Android 初始化成功');
+    }
+  } catch (e) {
+    debugPrint('⚠️ Firebase 初始化失败: $e');
+    // 继续运行应用，但推送功能可能不可用
+  }
 
   // 初始化未读消息通知器
   final unreadNotifier = UnreadMessageNotifier();

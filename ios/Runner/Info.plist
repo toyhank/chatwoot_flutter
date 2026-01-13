@@ -54,5 +54,28 @@
     <string>需要访问您的相册以发送图片给客服</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>需要保存图片到您的相册</string>
+    
+    <!-- 后台推送通知配置 -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+        <string>remote-notification</string>
+    </array>
+    
+    <!-- Firebase 配置 - 禁用自动代理以完全控制推送逻辑 -->
+    <key>FirebaseAppDelegateProxyEnabled</key>
+    <false/>
+    
+    <!-- 网络安全配置 - 允许 HTTP 连接（用于开发和测试环境） -->
+    <!-- ⚠️ 注意：生产环境应该只使用 HTTPS，或配置特定域名白名单 -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <!-- 允许加载所有 HTTP 内容（仅用于开发/测试） -->
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+        <!-- 可选：允许 WebView 中的任意加载 -->
+        <key>NSAllowsArbitraryLoadsInWebContent</key>
+        <true/>
+    </dict>
 </dict>
 </plist>

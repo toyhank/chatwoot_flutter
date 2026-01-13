@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -49,14 +50,8 @@ class PushNotificationService {
 
     debugPrint('🚀 初始化推送通知服务...');
 
-    // 初始化 Firebase（如果还未初始化）
-    try {
-      await Firebase.initializeApp();
-      debugPrint('✅ Firebase 初始化成功');
-    } catch (e) {
-      // Firebase 可能已经初始化，忽略错误
-      debugPrint('ℹ️ Firebase 已经初始化或初始化失败: $e');
-    }
+    // Firebase 已在 main.dart 中初始化，这里不需要再次初始化
+    debugPrint('ℹ️ Firebase 已在应用启动时初始化');
 
     // 请求通知权限
     NotificationSettings settings = await _messaging.requestPermission(
@@ -133,7 +128,15 @@ class PushNotificationService {
   /// 初始化本地通知
   static Future<void> _initLocalNotifications() async {
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: androidSettings);
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    const settings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
 
     await _localNotifications.initialize(
       settings,
@@ -185,7 +188,16 @@ class PushNotificationService {
       priority: Priority.high,
     );
 
-    const details = NotificationDetails(android: androidDetails);
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
 
     await _localNotifications.show(
       message.hashCode,
@@ -401,7 +413,7 @@ class PushNotificationService {
           'push_subscription': {
             'push_token': _fcmToken,
             'device_id': actualDeviceId,
-            'platform': 'android',
+            'platform': Platform.isIOS ? 'ios' : 'android',
           }
         }),
       );
@@ -440,7 +452,7 @@ class PushNotificationService {
                 'push_subscription': {
                   'push_token': _fcmToken,
                   'device_id': actualDeviceId,
-                  'platform': 'android',
+                  'platform': Platform.isIOS ? 'ios' : 'android',
                 }
               }),
             );
