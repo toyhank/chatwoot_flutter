@@ -408,6 +408,7 @@ class PushNotificationService {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         debugPrint('✅ 推送 Token 注册成功');
+        debugPrint('  - 响应: ${response.body}');
         await prefs.setString('registered_push_token', _fcmToken!);
         await prefs.setString('registered_contact_identifier', contactIdentifier);
         return true;

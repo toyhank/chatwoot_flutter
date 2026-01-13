@@ -58,15 +58,68 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkLoginStatus() async {
+    debugPrint('🔍 开始检查登录状态...');
+    
     // 检查本地存储中是否有登录信息
     final isLoggedIn = await StorageUtil.getBool('isLoggedIn') ?? false;
     final token = await StorageUtil.getString('token');
     final userId = await StorageUtil.getString('userId');
 
+    debugPrint('  - isLoggedIn标志: $isLoggedIn');
+    debugPrint('  - token: ${token != null ? "存在" : "null"}');
+    debugPrint('  - userId: ${userId != null ? "存在" : "null"}');
+
     setState(() {
       _isLoggedIn = isLoggedIn && token != null && token.isNotEmpty && userId != null && userId.isNotEmpty;
       _isLoading = false;
     });
+    
+    debugPrint('✅ 登录状态检查完成: $_isLoggedIn');
+    
+    // ⭐ 如果已登录，注册推送 Token（确保推送订阅是最新的）
+    if (_isLoggedIn) {
+      debugPrint('✅ 用户已登录，准备注册推送订阅...');
+      _registerPushIfLoggedIn();
+    } else {
+      debugPrint('⚠️ 用户未登录，跳过推送注册');
+    }
+  }
+  
+  /// 为已登录用户注册推送通知
+  /// 
+  /// 这确保了即使用户不是通过登录流程进入应用，
+  /// 推送订阅也会保持最新状态
+  Future<void> _registerPushIfLoggedIn() async {
+    debugPrint('📱 开始为已登录用户注册推送...');
+    
+    try {
+      final email = await AppConfig.getUserEmail();
+      final name = await AppConfig.getUserName();
+      
+      debugPrint('  - Email: $email');
+      debugPrint('  - Name: $name');
+      
+      if (email.isEmpty) {
+        debugPrint('⚠️ 用户邮箱为空，跳过推送注册');
+        return;
+      }
+      
+      debugPrint('🔄 检测到已登录用户，注册推送订阅...');
+      
+      final success = await PushNotificationService.registerPushToken(
+        contactIdentifier: email,
+        name: name,
+        email: email,
+      );
+      
+      if (success) {
+        debugPrint('✅ 应用启动时推送注册成功');
+      } else {
+        debugPrint('⚠️ 应用启动时推送注册失败');
+      }
+    } catch (e) {
+      debugPrint('❌ 应用启动时推送注册错误: $e');
+    }
   }
 
   @override

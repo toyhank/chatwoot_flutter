@@ -6,7 +6,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:crypto/crypto.dart' as crypto;
 import '../../config/app_config.dart';
 import '../../utils/storage_util.dart';
-import '../../services/firebase_service.dart';
 
 /// Chatwoot 客服页面 - 使用 InAppWebView 直接加载 widget
 class CustomerServicePage extends StatefulWidget {
@@ -207,118 +206,12 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
           debugPrint('💾 已保存会话 token');
         }
 
-        // Widget 加载完成后立即设置用户信息和 FCM Token
-        // 延迟 500ms 确保 $chatwoot 对象完全初始化
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (_webViewController != null) {
-            _setUserInfo(_webViewController!);
-            _sendFCMTokenToChatwoot(_webViewController!);
-          }
-        });
+        // 注意：用户身份已通过 URL 参数（HMAC）传递给 Widget
+        // 推送订阅已通过 HTTP API 在 main.dart 中注册
+        // 不需要使用 JavaScript 调用 $chatwoot 对象
       }
     } catch (e) {
       debugPrint('⚠️ 处理消息失败: $e');
-    }
-  }
-
-  /// 设置用户信息
-  Future<void> _setUserInfo(InAppWebViewController controller) async {
-    try {
-      debugPrint('🔧 开始设置用户信息...');
-      
-      // 获取用户信息
-      final userId = await AppConfig.getUserId();
-      final userName = await AppConfig.getUserName();
-      final userEmail = await AppConfig.getUserEmail();
-
-      debugPrint('👤 用户信息: userId=$userId, name=$userName, email=$userEmail');
-
-      // 等待确保 $chatwoot 对象完全初始化（loaded 事件触发后很快就绪）
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // 转义用户信息中的特殊字符
-      final safeUserId = userId.replaceAll("'", "\\'");
-      final safeUserName = userName.replaceAll("'", "\\'");
-      final safeUserEmail = userEmail.replaceAll("'", "\\'");
-
-      // 通过 JavaScript 设置用户信息
-      final jsCode = '''
-        (function() {
-          try {
-            console.log('🔧 尝试设置用户信息...');
-            if (window.\$chatwoot) {
-              console.log('✅ Chatwoot 对象存在');
-              window.\$chatwoot.setUser('$safeUserId', {
-                name: '$safeUserName',
-                email: '$safeUserEmail'
-              });
-              console.log('✅ 用户信息已设置: $safeUserName ($safeUserEmail)');
-              window.\$chatwoot.setLocale('zh_CN');
-            } else {
-              console.error('❌ Chatwoot 对象不存在');
-            }
-          } catch (e) {
-            console.error('❌ 设置用户信息失败:', e.toString());
-          }
-        })();
-      ''';
-
-      await controller.evaluateJavascript(source: jsCode);
-      debugPrint('✅ JavaScript 已执行');
-    } catch (e) {
-      debugPrint('⚠️ 设置用户信息失败: $e');
-    }
-  }
-
-  /// 发送 FCM Token 到 Chatwoot
-  Future<void> _sendFCMTokenToChatwoot(InAppWebViewController controller) async {
-    try {
-      debugPrint('📤 开始发送 FCM Token 到 Chatwoot...');
-      
-      // 获取 FCM Token
-      final firebaseService = FirebaseService();
-      final fcmToken = await firebaseService.getCurrentToken();
-      
-      if (fcmToken == null || fcmToken.isEmpty) {
-        debugPrint('⚠️ FCM Token 不可用，跳过发送');
-        return;
-      }
-
-      debugPrint('📱 FCM Token: ${fcmToken.substring(0, 20)}...');
-
-      // 等待确保 $chatwoot 对象完全初始化
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // 转义 Token 中的特殊字符
-      final safeToken = fcmToken.replaceAll("'", "\\'");
-
-      // 通过 JavaScript 将 Token 发送给 Chatwoot
-      final jsCode = '''
-        (function() {
-          try {
-            console.log('📤 尝试发送 FCM Token 到 Chatwoot...');
-            if (window.\$chatwoot && window.\$chatwoot.setCustomAttributes) {
-              // 使用自定义属性保存 FCM Token
-              window.\$chatwoot.setCustomAttributes({
-                fcm_token: '$safeToken',
-                push_platform: 'android'
-              });
-              console.log('✅ FCM Token 已发送');
-            } else if (window.\$chatwoot) {
-              console.warn('⚠️ setCustomAttributes 方法不可用');
-            } else {
-              console.error('❌ Chatwoot 对象不存在');
-            }
-          } catch (e) {
-            console.error('❌ 发送 FCM Token 失败:', e.toString());
-          }
-        })();
-      ''';
-
-      await controller.evaluateJavascript(source: jsCode);
-      debugPrint('✅ FCM Token 已发送到 Chatwoot');
-    } catch (e) {
-      debugPrint('⚠️ 发送 FCM Token 失败: $e');
     }
   }
 }
