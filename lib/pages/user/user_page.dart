@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../log_viewer_page.dart';
 
 /// 用户中心页面
 class UserPage extends StatefulWidget {
@@ -162,6 +163,7 @@ class _UserPageState extends State<UserPage> {
   /// 功能列表
   Widget _buildMenuList() {
     final menuItems = [
+      {'icon': Icons.bug_report, 'title': '应用日志', 'route': '/logs'},
       {'icon': Icons.account_balance_wallet, 'title': '我的钱包', 'route': '/wallet'},
       {'icon': Icons.history, 'title': '提现记录', 'route': '/record'},
       {'icon': Icons.card_giftcard, 'title': '每日签到', 'route': '/signin'},
@@ -179,7 +181,16 @@ class _UserPageState extends State<UserPage> {
             icon: item['icon'] as IconData,
             title: item['title'] as String,
             onTap: () {
-              // TODO: 页面跳转
+              final route = item['route'] as String;
+              if (route == '/logs') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LogViewerPage(),
+                  ),
+                );
+              }
+              // TODO: 其他页面跳转
             },
           )),
           

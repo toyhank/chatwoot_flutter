@@ -72,6 +72,9 @@ dependencies:
   
   # 本地通知支持（用于前台推送消息显示）
   flutter_local_notifications: ^18.0.1
+  
+  # 日志查看器
+  talker_flutter: ^4.6.0
 
   # Chatwoot 使用 WebView 集成（支持全平台）
   # webview_flutter 已在上面声明

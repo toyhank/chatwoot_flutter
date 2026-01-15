@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'config/theme.dart';
 import 'config/app_config.dart';
 import 'utils/storage_util.dart';
+import 'utils/app_logger.dart';
 import 'services/push_notification_service.dart';
 import 'services/unread_message_notifier.dart';
 import 'pages/main_page.dart';
@@ -12,58 +14,88 @@ import 'pages/login/login_page.dart';
 import 'pages/register/register_page.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  // 初始化本地存储
-  await StorageUtil.init();
+      // 重定向 debugPrint 到 AppLogger
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (message != null) {
+          // 1. 记录到 Talker (应用内日志)
+          AppLogger.debug(message);
+          
+          // 2. 打印到控制台 (Console)
+          // 注意：必须使用 print() 而不是 debugPrint()，因为 debugPrint 已被重定向。
+          // 如果 Talker 开启了 console logs，它可能会调用 debugPrint 导致无限循环。
+          // 所以这里我们手动输出到控制台，并在 AppLogger 中关闭 Talker 的 console logs。
+          print(message);
+        }
+      };
 
-  // 初始化 Firebase（使用平台特定配置）
-  try {
-    if (Platform.isIOS) {
-      // iOS 配置（从 GoogleService-Info.plist 提取）
-      await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: "AIzaSyCr5gSBLYbarDdjDKshe684tmTSl4elPMQ",
-          appId: "1:938639328662:ios:137258b304caff91cf49b7",
-          messagingSenderId: "938639328662",
-          projectId: "xcard-2b2ea",
-          storageBucket: "xcard-2b2ea.firebasestorage.app",
-          iosBundleId: "com.toyhank.xcard",
+      // 捕获 Flutter 框架错误
+      FlutterError.onError = (FlutterErrorDetails details) {
+        AppLogger.error(
+          'Flutter Error',
+          details.exception,
+          details.stack,
+        );
+      };
+
+      // 初始化本地存储
+      await StorageUtil.init();
+
+      // 初始化 Firebase（使用平台特定配置）
+      try {
+        if (Platform.isIOS) {
+          // iOS 配置（从 GoogleService-Info.plist 提取）
+          await Firebase.initializeApp(
+            options: const FirebaseOptions(
+              apiKey: "AIzaSyCr5gSBLYbarDdjDKshe684tmTSl4elPMQ",
+              appId: "1:938639328662:ios:137258b304caff91cf49b7",
+              messagingSenderId: "938639328662",
+              projectId: "xcard-2b2ea",
+              storageBucket: "xcard-2b2ea.firebasestorage.app",
+              iosBundleId: "com.toyhank.xcard",
+            ),
+          );
+          AppLogger.info('✅ Firebase iOS 初始化成功');
+        } else {
+          // Android 配置（会自动读取 google-services.json）
+          await Firebase.initializeApp();
+          AppLogger.info('✅ Firebase Android 初始化成功');
+        }
+      } catch (e, stack) {
+        AppLogger.error('⚠️ Firebase 初始化失败', e, stack);
+        // 继续运行应用，但推送功能可能不可用
+      }
+
+      // 初始化未读消息通知器
+      final unreadNotifier = UnreadMessageNotifier();
+      await unreadNotifier.initialize();
+
+      // 初始化推送通知服务（包含 Chatwoot 集成）
+      try {
+        await PushNotificationService.initialize(
+          chatwootBaseUrl: AppConfig.chatwootBaseUrl,
+          websiteToken: AppConfig.chatwootWebsiteToken,
+          unreadNotifier: unreadNotifier, // 传递未读消息通知器
+        );
+        
+        AppLogger.info('✅ 推送通知服务初始化完成');
+      } catch (e, stack) {
+        AppLogger.error('⚠️ 推送服务初始化失败，应用将继续运行', e, stack);
+      }
+
+      runApp(
+        ChangeNotifierProvider.value(
+          value: unreadNotifier,
+          child: const MyApp(),
         ),
       );
-      debugPrint('✅ Firebase iOS 初始化成功');
-    } else {
-      // Android 配置（会自动读取 google-services.json）
-      await Firebase.initializeApp();
-      debugPrint('✅ Firebase Android 初始化成功');
-    }
-  } catch (e) {
-    debugPrint('⚠️ Firebase 初始化失败: $e');
-    // 继续运行应用，但推送功能可能不可用
-  }
-
-  // 初始化未读消息通知器
-  final unreadNotifier = UnreadMessageNotifier();
-  await unreadNotifier.initialize();
-
-  // 初始化推送通知服务（包含 Chatwoot 集成）
-  try {
-    await PushNotificationService.initialize(
-      chatwootBaseUrl: AppConfig.chatwootBaseUrl,
-      websiteToken: AppConfig.chatwootWebsiteToken,
-      unreadNotifier: unreadNotifier, // 传递未读消息通知器
-    );
-    
-    debugPrint('✅ 推送通知服务初始化完成');
-  } catch (e) {
-    debugPrint('⚠️ 推送服务初始化失败，应用将继续运行: $e');
-  }
-
-  runApp(
-    ChangeNotifierProvider.value(
-      value: unreadNotifier,
-      child: const MyApp(),
-    ),
+    },
+    (error, stack) {
+      AppLogger.critical('Uncaught Error', error, stack);
+    },
   );
 }
 
