@@ -70,6 +70,33 @@ class PushNotificationService {
     // 初始化本地通知
     await _initLocalNotifications();
 
+    // iOS 平台需要先获取 APNS Token
+    if (Platform.isIOS) {
+      try {
+        debugPrint('📱 正在获取 iOS APNS Token...');
+        final apnsToken = await _messaging.getAPNSToken();
+        if (apnsToken != null) {
+          debugPrint('✅ APNS Token 已获取');
+        } else {
+          debugPrint('⚠️ APNS Token 为空，等待中...');
+          // 等待一段时间让系统获取 APNS token
+          await Future.delayed(const Duration(seconds: 3));
+          final retryApnsToken = await _messaging.getAPNSToken();
+          if (retryApnsToken != null) {
+            debugPrint('✅ 重试后获取到 APNS Token');
+          } else {
+            debugPrint('❌ 无法获取 APNS Token，推送可能无法工作');
+            debugPrint('❌ 请检查:');
+            debugPrint('   1. Xcode 中是否启用了 Push Notifications capability');
+            debugPrint('   2. Firebase Console 是否上传了 APNs 证书/密钥');
+            debugPrint('   3. 是否在真机上测试（模拟器不支持推送）');
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ 获取 APNS Token 异常: $e');
+      }
+    }
+
     // 获取 FCM Token
     _fcmToken = await _messaging.getToken();
     if (_fcmToken != null) {
