@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../log_viewer_page.dart';
 
 /// 用户中心页面
@@ -12,22 +13,43 @@ class UserPage extends StatefulWidget {
 class _UserPageState extends State<UserPage> {
   bool _isLoggedIn = false;
   String _username = 'Guest';
+  String _email = '';
+  String _userId = '';
   final String _avatar = '';
   double _balance = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+  
+  /// 加载用户信息
+  Future<void> _loadUserInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    setState(() {
+      _isLoggedIn = prefs.getBool('is_logged_in') ?? false;  // AppConfig.keyIsLoggedIn
+      _username = prefs.getString('userName') ?? 'Guest';  // 'userName' not 'name'
+      _email = prefs.getString('userEmail') ?? '';  // 'userEmail' not 'email'
+      _userId = prefs.getString('userId') ?? '';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              // TODO: 跳转到设置页面
-            },
-          ),
-        ],
+        // Settings icon removed (not implemented)
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.settings),
+        //     onPressed: () {
+        //       // TODO: 跳转到设置页面
+        //     },
+        //   ),
+        // ],
       ),
       body: ListView(
         children: [
@@ -35,9 +57,9 @@ class _UserPageState extends State<UserPage> {
           _buildUserInfoCard(),
           const SizedBox(height: 10),
           
-          // 我的资产
-          _buildAssetsCard(),
-          const SizedBox(height: 10),
+          // Assets card - Hidden (not implemented)
+          // _buildAssetsCard(),
+          // const SizedBox(height: 10),
           
           // 功能列表
           _buildMenuList(),
@@ -84,7 +106,9 @@ class _UserPageState extends State<UserPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _isLoggedIn ? 'ID: 123456' : 'Login for more services',
+                      _isLoggedIn 
+                        ? (_email.isNotEmpty ? _email : 'ID: $_userId') 
+                        : 'Login for more services',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -162,15 +186,17 @@ class _UserPageState extends State<UserPage> {
   
   /// 功能列表
   Widget _buildMenuList() {
+    // Only show App Logs (functional) - other items hidden
     final menuItems = [
       {'icon': Icons.bug_report, 'title': 'App Logs', 'route': '/logs'},
-      {'icon': Icons.account_balance_wallet, 'title': 'My Wallet', 'route': '/wallet'},
-      {'icon': Icons.history, 'title': 'Withdrawal History', 'route': '/record'},
-      {'icon': Icons.card_giftcard, 'title': 'Daily Check-in', 'route': '/signin'},
-      {'icon': Icons.person_add, 'title': 'Invite Friends', 'route': '/invite'},
-      {'icon': Icons.notifications, 'title': 'Notifications', 'route': '/notifications'},
-      {'icon': Icons.help, 'title': 'Help Center', 'route': '/help'},
-      {'icon': Icons.info, 'title': 'About Us', 'route': '/about'},
+      // Hidden non-functional items:
+      // {'icon': Icons.account_balance_wallet, 'title': 'My Wallet', 'route': '/wallet'},
+      // {'icon': Icons.history, 'title': 'Withdrawal History', 'route': '/record'},
+      // {'icon': Icons.card_giftcard, 'title': 'Daily Check-in', 'route': '/signin'},
+      // {'icon': Icons.person_add, 'title': 'Invite Friends', 'route': '/invite'},
+      // {'icon': Icons.notifications, 'title': 'Notifications', 'route': '/notifications'},
+      // {'icon': Icons.help, 'title': 'Help Center', 'route': '/help'},
+      // {'icon': Icons.info, 'title': 'About Us', 'route': '/about'},
     ];
     
     return Card(

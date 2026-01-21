@@ -252,27 +252,17 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: Wrap(
                       children: [
                         const Text('I have read and agree to '),
-                        GestureDetector(
-                          onTap() {
-                            // TODO: 显示用户协议
-                          },
-                          child: Text(
-                            'Terms of Service',
-                            style: TextStyle(
-                              color: Theme.of(context).primaryColor,
-                            ),
+                        Text(
+                          'Terms of Service',
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
                           ),
                         ),
                         const Text(' and '),
-                        GestureDetector(
-                          onTap: () {
-                            // TODO: 显示隐私政策
-                          },
-                          child: Text(
-                            'Privacy Policy',
-                            style: TextStyle(
-                              color: Theme.of(context).primaryColor,
-                            ),
+                        Text(
+                          'Privacy Policy',
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
                           ),
                         ),
                       ],

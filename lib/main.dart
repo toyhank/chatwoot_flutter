@@ -199,11 +199,11 @@ class _MyAppState extends State<MyApp> {
       title: 'Game Card Trading Platform',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: _isLoggedIn ? const MainPage() : const LoginPage(),
+      home: _isLoggedIn ? MainPage(key: mainPageKey) : const LoginPage(),
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
-        '/main': (context) => const MainPage(),
+        '/main': (context) => MainPage(key: mainPageKey),
       },
     );
   }

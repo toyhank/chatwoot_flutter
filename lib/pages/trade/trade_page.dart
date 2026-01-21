@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../main_page.dart';
 
 /// 交易页面
 class TradePage extends StatefulWidget {
@@ -59,11 +60,16 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
         padding: const EdgeInsets.all(16),
         itemCount: 10,
         itemBuilder: (context, index) {
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+          return InkWell(
+            onTap: () {
+              // Navigate to chat tab when order card is tapped (index 2)
+              mainPageKey.currentState?.switchToTab(2);
+            },
+            child: Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 订单头部
@@ -71,7 +77,7 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '订单号: ${DateTime.now().millisecondsSinceEpoch + index}',
+                        'Order #: ${DateTime.now().millisecondsSinceEpoch + index}',
                         style: const TextStyle(fontSize: 12),
                       ),
                       Text(
@@ -103,7 +109,16 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '卡牌名称 ${index + 1}',
+                              () {
+                                final cardNames = [
+                                  'iTunes Gift Card \$100',
+                                  'Apple Store Gift Card \$50', 
+                                  'App Store & iTunes \$25',
+                                  'Apple Music Gift Card \$15',
+                                  'iTunes Digital Code \$10',
+                                ];
+                                return cardNames[index % cardNames.length];
+                              }(),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -111,7 +126,7 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              '数量: x1',
+                              'Quantity: x1',
                               style: TextStyle(fontSize: 12),
                             ),
                           ],
@@ -138,31 +153,32 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
                     ],
                   ),
                   
-                  // 操作按钮
-                  if (status == 'In Progress')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          OutlinedButton(
-                            onPressed: () {
-                              // TODO: 取消订单
-                            },
-                            child: const Text('Cancel Order'),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: () {
-                              // TODO: 查看详情
-                            },
-                            child: const Text('View Details'),
-                          ),
-                        ],
-                      ),
-                    ),
+                  // Action buttons hidden (not implemented)
+                  // if (status == 'In Progress')
+                  //   Padding(
+                  //     padding: const EdgeInsets.only(top: 12),
+                  //     child: Row(
+                  //       mainAxisAlignment: MainAxisAlignment.end,
+                  //       children: [
+                  //         OutlinedButton(
+                  //           onPressed: () {
+                  //             // TODO: 取消订单
+                  //           },
+                  //           child: const Text('Cancel Order'),
+                  //         ),
+                  //         const SizedBox(width: 8),
+                  //         ElevatedButton(
+                  //           onPressed: () {
+                  //             // TODO: 查看详情
+                  //           },
+                  //           child: const Text('View Details'),
+                  //         ),
+                  //       ],
+                  //     ),
+                  //   ),
                 ],
               ),
+            ),
             ),
           );
         },

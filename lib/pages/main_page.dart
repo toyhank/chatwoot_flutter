@@ -13,17 +13,20 @@ class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
   @override
-  State<MainPage> createState() => _MainPageState();
+  State<MainPage> createState() => MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+// Global key to access MainPage state from anywhere
+final GlobalKey<MainPageState> mainPageKey = GlobalKey<MainPageState>();
+
+class MainPageState extends State<MainPage> {
   int _currentIndex = 0;
   
-  // 页面列表
+  // 页面列表 (Withdraw tab hidden)
   final List<Widget> _pages = [
     const HomePage(),
     const TradePage(),
-    const WithdrawPage(),
+    // const WithdrawPage(), // Hidden
     const CustomerServicePage(),
     const UserPage(),
   ];
@@ -53,8 +56,8 @@ class _MainPageState extends State<MainPage> {
                 _currentIndex = index;
               });
               
-              // 如果点击的是聊天tab（索引3），清除未读
-              if (index == 3) {
+              // 如果点击的是聊天tab（索引2，因为Withdraw已隐藏），清除未读
+              if (index == 2) {
                 unreadNotifier.clearUnread();
               }
             },
@@ -62,6 +65,15 @@ class _MainPageState extends State<MainPage> {
         },
       ),
     );
+  }
+  
+  // Public method to switch tabs from external pages
+  void switchToTab(int index) {
+    if (index >= 0 && index < _pages.length) {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
   }
   
   /// 构建底部导航栏项目（带未读标记）
@@ -77,11 +89,12 @@ class _MainPageState extends State<MainPage> {
         activeIcon: Icon(Icons.shopping_bag),
         label: 'Order',
       ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.account_balance_wallet_outlined),
-        activeIcon: Icon(Icons.account_balance_wallet),
-        label: 'Withdraw',
-      ),
+      // Withdraw tab removed
+      // const BottomNavigationBarItem(
+      //   icon: Icon(Icons.account_balance_wallet_outlined),
+      //   activeIcon: Icon(Icons.account_balance_wallet),
+      //   label: 'Withdraw',
+      // ),
       BottomNavigationBarItem(
         icon: _buildChatIcon(Icons.chat_bubble_outline, hasUnread),
         activeIcon: _buildChatIcon(Icons.chat_bubble, hasUnread),

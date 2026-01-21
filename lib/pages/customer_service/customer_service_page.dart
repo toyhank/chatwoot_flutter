@@ -68,7 +68,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('在线客服'),
+        title: const Text('Customer Service'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         actions: [

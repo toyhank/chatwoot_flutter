@@ -125,16 +125,16 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 12),
               
-              // 忘记密码
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    // TODO: 跳转到忘记密码页面
-                  },
-                  child: const Text('Forgot Password?'),
-                ),
-              ),
+              // Forgot password - Hidden (not implemented)
+              // Align(
+              //   alignment: Alignment.centerRight,
+              //   child: TextButton(
+              //     onPressed: () {
+              //       // TODO: 跳转到忘记密码页面
+              //     },
+              //     child: const Text('Forgot Password?'),
+              //   ),
+              // ),
               const SizedBox(height: 20),
               
               // 登录按钮
@@ -165,23 +165,23 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 40),
               
-              // 第三方登录
-              const Divider(),
-              const SizedBox(height: 20),
-              const Text(
-                'Other Login Methods',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildSocialLoginButton(Icons.wechat, 'WeChat'),
-                  const SizedBox(width: 30),
-                  _buildSocialLoginButton(Icons.phone_android, 'QQ'),
-                ],
-              ),
+              // Social login - Hidden (not implemented)
+              // const Divider(),
+              // const SizedBox(height: 20),
+              // const Text(
+              //   'Other Login Methods',
+              //   textAlign: TextAlign.center,
+              //   style: TextStyle(fontSize: 12),
+              // ),
+              // const SizedBox(height: 20),
+              // Row(
+              //   mainAxisAlignment: MainAxisAlignment.center,
+              //   children: [
+              //     _buildSocialLoginButton(Icons.wechat, 'WeChat'),
+              //     const SizedBox(width: 30),
+              //     _buildSocialLoginButton(Icons.phone_android, 'QQ'),
+              //   ],
+              // ),
             ],
           ),
         ),

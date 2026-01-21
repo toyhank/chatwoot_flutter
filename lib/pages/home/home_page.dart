@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../main_page.dart';
+import '../../services/exchange_rate_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -9,7 +11,10 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool _isBalanceVisible = true;
-  final String _selectedCurrency = 'NG Naira(NGN)';
+  
+  // Exchange rate state
+  double? _exchangeRate;
+  bool _isLoadingRate = true;
 
   // 模拟数据
   final List<Map<String, dynamic>> _cardList = [
@@ -38,6 +43,23 @@ class _HomePageState extends State<HomePage> {
       'type': 'Steam',
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchExchangeRate();
+  }
+  
+  /// 获取汇率
+  Future<void> _fetchExchangeRate() async {
+    final rate = await ExchangeRateService.getUsdToNgnRateWithFallback();
+    if (mounted) {
+      setState(() {
+        _exchangeRate = rate;
+        _isLoadingRate = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,9 +91,9 @@ class _HomePageState extends State<HomePage> {
             _buildAssetCard(),
             const SizedBox(height: 16),
 
-            // 功能卡片行 (Weekly Bonus / Daily Check-in)
-            _buildFeatureRow(),
-            const SizedBox(height: 24),
+            // Feature cards (Weekly Bonus / Daily Check-in) - Hidden (not implemented)
+            // _buildFeatureRow(),
+            // const SizedBox(height: 24),
 
             // 列表标题
             const Text(
@@ -138,34 +160,14 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 顶部：下拉框 和 汇率展示
+          // Exchange rate display (simplified)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 货币选择下拉框
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      _selectedCurrency,
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Icon(Icons.arrow_drop_down, color: Colors.black54),
-                  ],
-                ),
-              ),
+              const SizedBox(width: 8), // Spacer
               
-              // 右侧汇率信息块
+              // Exchange rate info block
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -174,25 +176,16 @@ class _HomePageState extends State<HomePage> {
                 ),
                 child: Column(
                   children: [
-                     Container(
-                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                       decoration: BoxDecoration(
-                         color: Colors.black,
-                         borderRadius: BorderRadius.circular(4),
-                       ),
-                       child: const Text(
-                         'I.. Live Now',
-                         style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
-                       ),
-                     ),
-                     const SizedBox(height: 4),
                      const Text(
                        'Exchange Rate',
                        style: TextStyle(color: Colors.black54, fontSize: 10),
                      ),
-                     const Text(
-                       '1USD ≈ ₦1453',
-                       style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
+                     const SizedBox(height: 4),
+                     Text(
+                       _isLoadingRate 
+                         ? '1USD ≈ ₦...' 
+                         : '1USD ≈ ₦${ExchangeRateService.formatRate(_exchangeRate!)}',
+                       style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
                      ),
                   ],
                 ),
@@ -251,15 +244,15 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 24),
 
-          // 底部三个按钮
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildActionButton(Icons.arrow_upward, 'Withdraw', Colors.blue),
-              _buildActionButton(Icons.account_balance, 'Add Bank', Colors.grey[700]!),
-              _buildActionButton(Icons.description, 'Record', Colors.grey[700]!),
-            ],
-          ),
+          // Bottom action buttons - Hidden (not implemented)
+          // Row(
+          //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //   children: [
+          //     _buildActionButton(Icons.arrow_upward, 'Withdraw', Colors.blue),
+          //     _buildActionButton(Icons.account_balance, 'Add Bank', Colors.grey[700]!),
+          //     _buildActionButton(Icons.description, 'Record', Colors.grey[700]!),
+          //   ],
+          // ),
         ],
       ),
     );
@@ -374,7 +367,12 @@ class _HomePageState extends State<HomePage> {
 
   // 4. 列表项
   Widget _buildListItem(Map<String, dynamic> item) {
-    return Container(
+    return InkWell(
+      onTap: () {
+        // Navigate to chat tab (index 2, after Withdraw tab removed)
+        mainPageKey.currentState?.switchToTab(2);
+      },
+      child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C1E),
@@ -416,6 +414,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
         ],
+      ),
       ),
     );
   }

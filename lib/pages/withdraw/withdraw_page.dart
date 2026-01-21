@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../main_page.dart';
 
 /// 提现页面
 class WithdrawPage extends StatefulWidget {
@@ -29,14 +30,15 @@ class _WithdrawPageState extends State<WithdrawPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Withdraw'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // TODO: 跳转到提现记录
-            },
-            child: const Text('Withdrawal History'),
-          ),
-        ],
+        // Withdrawal History removed (not implemented)
+        // actions: [
+        //   TextButton(
+        //     onPressed: () {
+        //       // TODO: 跳转到提现记录
+        //     },
+        //     child: const Text('Withdrawal History'),
+        //   ),
+        // ],
       ),
       body: Form(
         key: _formKey,
@@ -59,11 +61,11 @@ class _WithdrawPageState extends State<WithdrawPage> {
             _buildAccountInput(),
             const SizedBox(height: 30),
             
-            // 提现按钮
-            ElevatedButton(
-              onPressed: _onWithdraw,
-              child: const Text('Withdraw Now'),
-            ),
+            // Withdraw button hidden (not implemented)
+            // ElevatedButton(
+            //   onPressed: _onWithdraw,
+            //   child: const Text('Withdraw Now'),
+            // ),
             const SizedBox(height: 16),
             
             // 提现说明
@@ -76,25 +78,31 @@ class _WithdrawPageState extends State<WithdrawPage> {
   
   /// 余额卡片
   Widget _buildBalanceCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Text(
-              'Available Balance',
-              style: TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '¥${_balance.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).primaryColor,
+    return InkWell(
+      onTap: () {
+        // Navigate to chat tab when balance card is tapped (index 2)
+        mainPageKey.currentState?.switchToTab(2);
+      },
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              const Text(
+                'Available Balance',
+                style: TextStyle(fontSize: 14),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                '¥${_balance.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
