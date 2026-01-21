@@ -78,17 +78,17 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _usernameController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  labelText: '邮箱',
-                  hintText: '请输入邮箱地址',
+                  labelText: 'Email',
+                  hintText: 'Enter email address',
                   prefixIcon: Icon(Icons.email),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return '请输入邮箱地址';
+                    return 'Please enter email address';
                   }
                   // 简单的邮箱格式验证
                   if (!value.contains('@') || !value.contains('.')) {
-                    return '请输入有效的邮箱地址';
+                    return 'Please enter a valid email address';
                   }
                   return null;
                 },
@@ -100,7 +100,7 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
-                  labelText: '密码',
+                  labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -115,10 +115,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return '请输入密码';
+                    return 'Please enter password';
                   }
                   if (value.length < 6) {
-                    return '密码长度至少6位';
+                    return 'Password must be at least 6 characters';
                   }
                   return null;
                 },
@@ -132,7 +132,7 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () {
                     // TODO: 跳转到忘记密码页面
                   },
-                  child: const Text('忘记密码？'),
+                  child: const Text('Forgot Password?'),
                 ),
               ),
               const SizedBox(height: 20),
@@ -146,7 +146,7 @@ class _LoginPageState extends State<LoginPage> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('登录'),
+                    : const Text('Login'),
               ),
               const SizedBox(height: 20),
               
@@ -154,12 +154,12 @@ class _LoginPageState extends State<LoginPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('还没有账号？'),
+                  const Text("Don't have an account?"),
                   TextButton(
                     onPressed: () {
                       Navigator.pushNamed(context, '/register');
                     },
-                    child: const Text('立即注册'),
+                    child: const Text('Sign Up'),
                   ),
                 ],
               ),
@@ -169,7 +169,7 @@ class _LoginPageState extends State<LoginPage> {
               const Divider(),
               const SizedBox(height: 20),
               const Text(
-                '其他登录方式',
+                'Other Login Methods',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12),
               ),
@@ -177,7 +177,7 @@ class _LoginPageState extends State<LoginPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildSocialLoginButton(Icons.wechat, '微信'),
+                  _buildSocialLoginButton(Icons.wechat, 'WeChat'),
                   const SizedBox(width: 30),
                   _buildSocialLoginButton(Icons.phone_android, 'QQ'),
                 ],
@@ -242,7 +242,7 @@ class _LoginPageState extends State<LoginPage> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('欢迎回来，${user.username ?? "用户"}！'),
+                  content: Text('Welcome back, ${user.username ?? "User"}!'),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -256,7 +256,7 @@ class _LoginPageState extends State<LoginPage> {
               SnackBar(
                 content: Text(response.message.isNotEmpty 
                     ? response.message 
-                    : '登录失败，请检查账号密码'),
+                    : 'Login failed, please check your credentials'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -270,7 +270,7 @@ class _LoginPageState extends State<LoginPage> {
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('登录失败: $e'),
+              content: Text('Login failed: $e'),
               backgroundColor: Colors.red,
             ),
           );

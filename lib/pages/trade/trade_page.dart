@@ -32,18 +32,18 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
           controller: _tabController,
           indicatorColor: Theme.of(context).primaryColor,
           tabs: const [
-            Tab(text: '进行中'),
-            Tab(text: '已完成'),
-            Tab(text: '已取消'),
+            Tab(text: 'In Progress'),
+            Tab(text: 'Completed'),
+            Tab(text: 'Cancelled'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildOrderList('进行中'),
-          _buildOrderList('已完成'),
-          _buildOrderList('已取消'),
+          _buildOrderList('In Progress'),
+          _buildOrderList('Completed'),
+          _buildOrderList('Cancelled'),
         ],
       ),
     );
@@ -139,7 +139,7 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
                   ),
                   
                   // 操作按钮
-                  if (status == '进行中')
+                  if (status == 'In Progress')
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Row(
@@ -149,14 +149,14 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
                             onPressed: () {
                               // TODO: 取消订单
                             },
-                            child: const Text('取消订单'),
+                            child: const Text('Cancel Order'),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: () {
                               // TODO: 查看详情
                             },
-                            child: const Text('查看详情'),
+                            child: const Text('View Details'),
                           ),
                         ],
                       ),

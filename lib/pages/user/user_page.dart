@@ -11,7 +11,7 @@ class UserPage extends StatefulWidget {
 
 class _UserPageState extends State<UserPage> {
   bool _isLoggedIn = false;
-  String _username = '游客';
+  String _username = 'Guest';
   final String _avatar = '';
   double _balance = 0.0;
 
@@ -76,7 +76,7 @@ class _UserPageState extends State<UserPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _isLoggedIn ? _username : '点击登录',
+                      _isLoggedIn ? _username : 'Tap to Login',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -84,7 +84,7 @@ class _UserPageState extends State<UserPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _isLoggedIn ? 'ID: 123456' : '登录后享受更多服务',
+                      _isLoggedIn ? 'ID: 123456' : 'Login for more services',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -116,7 +116,7 @@ class _UserPageState extends State<UserPage> {
         child: Row(
           children: [
             Expanded(
-              child: _buildAssetItem('余额', '¥${_balance.toStringAsFixed(2)}'),
+              child: _buildAssetItem('Balance', '¥${_balance.toStringAsFixed(2)}'),
             ),
             Container(
               width: 1,
@@ -124,7 +124,7 @@ class _UserPageState extends State<UserPage> {
               color: Colors.grey[800],
             ),
             Expanded(
-              child: _buildAssetItem('积分', '0'),
+              child: _buildAssetItem('Points', '0'),
             ),
             Container(
               width: 1,
@@ -132,7 +132,7 @@ class _UserPageState extends State<UserPage> {
               color: Colors.grey[800],
             ),
             Expanded(
-              child: _buildAssetItem('优惠券', '0'),
+              child: _buildAssetItem('Coupons', '0'),
             ),
           ],
         ),
@@ -163,14 +163,14 @@ class _UserPageState extends State<UserPage> {
   /// 功能列表
   Widget _buildMenuList() {
     final menuItems = [
-      {'icon': Icons.bug_report, 'title': '应用日志', 'route': '/logs'},
-      {'icon': Icons.account_balance_wallet, 'title': '我的钱包', 'route': '/wallet'},
-      {'icon': Icons.history, 'title': '提现记录', 'route': '/record'},
-      {'icon': Icons.card_giftcard, 'title': '每日签到', 'route': '/signin'},
-      {'icon': Icons.person_add, 'title': '邀请好友', 'route': '/invite'},
-      {'icon': Icons.notifications, 'title': '消息通知', 'route': '/notifications'},
-      {'icon': Icons.help, 'title': '帮助中心', 'route': '/help'},
-      {'icon': Icons.info, 'title': '关于我们', 'route': '/about'},
+      {'icon': Icons.bug_report, 'title': 'App Logs', 'route': '/logs'},
+      {'icon': Icons.account_balance_wallet, 'title': 'My Wallet', 'route': '/wallet'},
+      {'icon': Icons.history, 'title': 'Withdrawal History', 'route': '/record'},
+      {'icon': Icons.card_giftcard, 'title': 'Daily Check-in', 'route': '/signin'},
+      {'icon': Icons.person_add, 'title': 'Invite Friends', 'route': '/invite'},
+      {'icon': Icons.notifications, 'title': 'Notifications', 'route': '/notifications'},
+      {'icon': Icons.help, 'title': 'Help Center', 'route': '/help'},
+      {'icon': Icons.info, 'title': 'About Us', 'route': '/about'},
     ];
     
     return Card(
@@ -198,7 +198,7 @@ class _UserPageState extends State<UserPage> {
           if (_isLoggedIn)
             _buildMenuItem(
               icon: Icons.logout,
-              title: '退出登录',
+              title: 'Logout',
               onTap: _onLogout,
               showDivider: false,
             ),
@@ -232,26 +232,26 @@ class _UserPageState extends State<UserPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('退出登录'),
+        title: const Text('Logout'),
         content: const Text('确定要退出登录吗？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               setState(() {
                 _isLoggedIn = false;
-                _username = '游客';
+                _username = 'Guest';
                 _balance = 0.0;
               });
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('已退出登录')),
+                const SnackBar(content: Text('Logged out successfully')),
               );
             },
-            child: const Text('确定'),
+            child: const Text('Confirm'),
           ),
         ],
       ),

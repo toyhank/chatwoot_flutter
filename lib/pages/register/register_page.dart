@@ -48,7 +48,7 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('注册'),
+        title: const Text('Register'),
         backgroundColor: Theme.of(context).cardColor,
         elevation: 0,
       ),
@@ -62,7 +62,7 @@ class _RegisterPageState extends State<RegisterPage> {
               
               // 标题
               Text(
-                '创建账号',
+                'Create Account',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -71,7 +71,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 8),
               const Text(
-                '请填写以下信息完成注册',
+                'Please fill in the following information to complete registration',
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 40),
@@ -81,16 +81,16 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  labelText: '邮箱',
+                  labelText: 'Email',
                   prefixIcon: Icon(Icons.email),
-                  hintText: '请输入邮箱地址',
+                  hintText: 'Enter email address',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return '请输入邮箱地址';
+                    return 'Please enter email address';
                   }
                   if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                    return '请输入正确的邮箱格式';
+                    return 'Please enter valid email format';
                   }
                   return null;
                 },
@@ -105,19 +105,19 @@ class _RegisterPageState extends State<RegisterPage> {
                       controller: _codeController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: '验证码',
+                        labelText: 'Verification Code',
                         prefixIcon: Icon(Icons.verified_user),
-                        hintText: '请输入6位验证码',
+                        hintText: 'Enter 6-digit code',
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return '请输入验证码';
+                          return 'Please enter verification code';
                         }
                         if (value.length != 6) {
-                          return '验证码为6位数字';
+                          return 'Code must be 6 digits';
                         }
                         if (!RegExp(r'^\d{6}$').hasMatch(value)) {
-                          return '验证码只能包含数字';
+                          return 'Code must contain only numbers';
                         }
                         return null;
                       },
@@ -137,7 +137,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(_countdown > 0 ? '$_countdown秒' : '发送验证码'),
+                          : Text(_countdown > 0 ? '${_countdown}s' : 'Send Code'),
                     ),
                   ),
                 ],
@@ -148,9 +148,9 @@ class _RegisterPageState extends State<RegisterPage> {
               TextFormField(
                 controller: _nicknameController,
                 decoration: const InputDecoration(
-                  labelText: '昵称（可选）',
+                  labelText: 'Nickname (Optional)',
                   prefixIcon: Icon(Icons.person),
-                  hintText: '不填写则使用邮箱前缀',
+                  hintText: 'Leave empty to use email prefix',
                 ),
               ),
               const SizedBox(height: 20),
@@ -160,14 +160,14 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
-                  labelText: '手机号（可选）',
+                  labelText: 'Phone (Optional)',
                   prefixIcon: Icon(Icons.phone),
-                  hintText: '请输入手机号',
+                  hintText: 'Enter phone number',
                 ),
                 validator: (value) {
                   if (value != null && value.isNotEmpty) {
                     if (!RegExp(r'^1[3-9]\d{9}$').hasMatch(value)) {
-                      return '请输入正确的手机号';
+                      return 'Please enter valid phone number';
                     }
                   }
                   return null;
@@ -180,9 +180,9 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
-                  labelText: '密码',
+                  labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock),
-                  hintText: '请输入密码（6-20位）',
+                  hintText: 'Enter password (6-20 characters)',
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
@@ -196,10 +196,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return '请输入密码';
+                    return 'Please enter password';
                   }
                   if (value.length < 6 || value.length > 20) {
-                    return '密码长度必须在6-20位之间';
+                    return 'Password must be 6-20 characters';
                   }
                   return null;
                 },
@@ -211,9 +211,9 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _confirmPasswordController,
                 obscureText: !_isConfirmPasswordVisible,
                 decoration: InputDecoration(
-                  labelText: '确认密码',
+                  labelText: 'Confirm Password',
                   prefixIcon: const Icon(Icons.lock_outline),
-                  hintText: '请再次输入密码',
+                  hintText: 'Enter password again',
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
@@ -227,10 +227,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return '请再次输入密码';
+                    return 'Please enter password again';
                   }
                   if (value != _passwordController.text) {
-                    return '两次密码不一致';
+                    return 'Passwords do not match';
                   }
                   return null;
                 },
@@ -251,25 +251,25 @@ class _RegisterPageState extends State<RegisterPage> {
                   Expanded(
                     child: Wrap(
                       children: [
-                        const Text('我已阅读并同意 '),
+                        const Text('I have read and agree to '),
                         GestureDetector(
-                          onTap: () {
+                          onTap() {
                             // TODO: 显示用户协议
                           },
                           child: Text(
-                            '《用户协议》',
+                            'Terms of Service',
                             style: TextStyle(
                               color: Theme.of(context).primaryColor,
                             ),
                           ),
                         ),
-                        const Text(' 和 '),
+                        const Text(' and '),
                         GestureDetector(
                           onTap: () {
                             // TODO: 显示隐私政策
                           },
                           child: Text(
-                            '《隐私政策》',
+                            'Privacy Policy',
                             style: TextStyle(
                               color: Theme.of(context).primaryColor,
                             ),
@@ -293,7 +293,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('注册', style: TextStyle(fontSize: 16)),
+                      : const Text('Register', style: TextStyle(fontSize: 16)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -302,12 +302,12 @@ class _RegisterPageState extends State<RegisterPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('已有账号？'),
+                  const Text('Already have an account?'),
                   TextButton(
                     onPressed: () {
                       Navigator.pop(context);
                     },
-                    child: const Text('立即登录'),
+                    child: const Text('Login'),
                   ),
                 ],
               ),
@@ -323,14 +323,14 @@ class _RegisterPageState extends State<RegisterPage> {
     // 先验证邮箱格式
     if (_emailController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先输入邮箱地址')),
+        const SnackBar(content: Text('Please enter email address first')),
       );
       return;
     }
     
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入正确的邮箱格式')),
+        const SnackBar(content: Text('Please enter valid email format')),
       );
       return;
     }
@@ -351,7 +351,7 @@ class _RegisterPageState extends State<RegisterPage> {
         if (response.isSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('验证码已发送到您的邮箱，请注意查收'),
+              content: Text('Verification code sent to your email, please check'),
               backgroundColor: Colors.green,
             ),
           );
@@ -363,7 +363,7 @@ class _RegisterPageState extends State<RegisterPage> {
             SnackBar(
               content: Text(response.message.isNotEmpty 
                   ? response.message 
-                  : '发送验证码失败'),
+                  : 'Failed to send verification code'),
               backgroundColor: Colors.red,
             ),
           );
@@ -377,7 +377,7 @@ class _RegisterPageState extends State<RegisterPage> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('发送验证码失败: $e'),
+            content: Text('Failed to send verification code: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -412,7 +412,7 @@ class _RegisterPageState extends State<RegisterPage> {
     if (_formKey.currentState!.validate()) {
       if (!_agreedToTerms) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('请先同意用户协议和隐私政策')),
+          const SnackBar(content: Text('Please agree to Terms of Service and Privacy Policy first')),
         );
         return;
       }
@@ -443,7 +443,7 @@ class _RegisterPageState extends State<RegisterPage> {
           if (response.isSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('注册成功，请登录'),
+                content: Text('Registration successful, please login'),
                 backgroundColor: Colors.green,
               ),
             );
@@ -459,7 +459,7 @@ class _RegisterPageState extends State<RegisterPage> {
               SnackBar(
                 content: Text(response.message.isNotEmpty 
                     ? response.message 
-                    : '注册失败，请检查输入信息'),
+                    : 'Registration failed, please check input'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -473,7 +473,7 @@ class _RegisterPageState extends State<RegisterPage> {
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('注册失败: $e'),
+              content: Text('Registration failed: $e'),
               backgroundColor: Colors.red,
             ),
           );

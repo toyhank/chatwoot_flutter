@@ -179,8 +179,8 @@ class PushNotificationService {
     // 创建 Android 通知渠道
     const channel = AndroidNotificationChannel(
       'chatwoot_messages',
-      '客服消息',
-      description: '接收客服回复',
+      'Customer Service',
+      description: 'Customer service messages',
       importance: Importance.high,
     );
 
@@ -209,8 +209,8 @@ class PushNotificationService {
   static Future<void> _showNotification(RemoteMessage message) async {
     const androidDetails = AndroidNotificationDetails(
       'chatwoot_messages',
-      '客服消息',
-      channelDescription: '接收客服回复',
+      'Customer Service',
+      channelDescription: 'Customer service messages',
       importance: Importance.high,
       priority: Priority.high,
     );
@@ -228,7 +228,7 @@ class PushNotificationService {
 
     await _localNotifications.show(
       message.hashCode,
-      message.notification?.title ?? '新消息',
+      message.notification?.title ?? 'New Message',
       message.notification?.body ?? '',
       details,
       payload: json.encode(message.data),

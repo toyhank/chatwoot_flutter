@@ -14,7 +14,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
   final _amountController = TextEditingController();
   final _accountController = TextEditingController();
   
-  String _withdrawType = '银行卡';
+  String _withdrawType = 'Bank Card';
   final double _balance = 1000.00; // 示例余额
   
   @override
@@ -34,7 +34,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
             onPressed: () {
               // TODO: 跳转到提现记录
             },
-            child: const Text('提现记录'),
+            child: const Text('Withdrawal History'),
           ),
         ],
       ),
@@ -62,7 +62,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
             // 提现按钮
             ElevatedButton(
               onPressed: _onWithdraw,
-              child: const Text('立即提现'),
+              child: const Text('Withdraw Now'),
             ),
             const SizedBox(height: 16),
             
@@ -82,7 +82,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
         child: Column(
           children: [
             const Text(
-              '可提现余额',
+              'Available Balance',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 8),
@@ -106,13 +106,13 @@ class _WithdrawPageState extends State<WithdrawPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '提现方式',
+          'Withdrawal Method',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 12,
-          children: ['银行卡', '支付宝', '微信'].map((type) {
+          children: ['Bank Card', 'Alipay', 'WeChat'].map((type) {
             return ChoiceChip(
               label: Text(type),
               selected: _withdrawType == type,
@@ -136,7 +136,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '提现金额',
+          'Withdrawal Amount',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
@@ -147,25 +147,25 @@ class _WithdrawPageState extends State<WithdrawPage> {
             FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
           ],
           decoration: InputDecoration(
-            hintText: '请输入提现金额',
+            hintText: 'Enter withdrawal amount',
             prefixText: '¥ ',
             suffixIcon: TextButton(
               onPressed: () {
                 _amountController.text = _balance.toString();
               },
-              child: const Text('全部'),
+              child: const Text('All'),
             ),
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return '请输入提现金额';
+              return 'Please enter withdrawal amount';
             }
-            final amount = double.tryParse(value);
+            double? amount = double.tryParse(value);
             if (amount == null || amount <= 0) {
-              return '请输入有效金额';
+              return 'Please enter valid amount';
             }
             if (amount > _balance) {
-              return '余额不足';
+              return 'Insufficient balance';
             }
             return null;
           },
@@ -191,7 +191,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return '请输入账号';
+              return 'Please enter account';
             }
             return null;
           },
@@ -209,15 +209,15 @@ class _WithdrawPageState extends State<WithdrawPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '提现说明',
+              'Withdrawal Instructions',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
-              '1. 提现金额最低10元\n'
-              '2. 每日最多提现3次\n'
-              '3. 工作日24小时内到账\n'
-              '4. 节假日顺延至工作日处理',
+              '1. Minimum withdrawal amount is ¥10\n'
+              '2. Maximum 3 withdrawals per day\n'
+              '3. Processed within 24 hours on weekdays\n'
+              '4. Holidays delayed to next business day',
               style: TextStyle(fontSize: 12, height: 1.5),
             ),
           ],
@@ -233,21 +233,21 @@ class _WithdrawPageState extends State<WithdrawPage> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('提现申请'),
-          content: Text('提现金额: ¥${_amountController.text}\n提现方式: $_withdrawType'),
+          title: const Text('Withdrawal Request'),
+          content: Text('Amount: ¥${_amountController.text}\nMethod: $_withdrawType'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('提现申请已提交')),
+                  const SnackBar(content: Text('Withdrawal request submitted')),
                 );
               },
-              child: const Text('确认'),
+              child: const Text('Confirm'),
             ),
           ],
         ),
