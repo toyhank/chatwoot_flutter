@@ -1,0 +1,27 @@
+# Patrol 配置文件
+# 文档: https://patrol.leancode.co/
+
+# 截图输出目录
+[screenshots]
+output_directory = "screenshots"
+
+# iOS 配置
+[ios]
+# 默认使用的模拟器（可选，Codemagic 会自动选择）
+# simulator = "iPhone 14 Pro"
+
+# Android 配置
+[android]
+# 默认使用的模拟器（可选）
+# emulator = "Pixel_6_API_33"
+
+# 测试配置
+[test]
+# 测试超时（秒）
+timeout = 300
+
+# 是否在测试失败时保留截图
+keep_screenshots_on_failure = true
+
+# 是否显示详细日志
+verbose = true

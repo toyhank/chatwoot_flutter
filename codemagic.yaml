@@ -1,0 +1,184 @@
+workflows:
+  # iOS 截图自动化工作流
+  ios-screenshots:
+    name: iOS Screenshots Generation
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      groups:
+        # 如果有环境变量组，在此引用
+        # - app_store_credentials
+      vars:
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+        # 定义测试环境
+        ENV: "testing"
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install Flutter dependencies
+        script: |
+          flutter pub get
+      
+      - name: Install Patrol CLI
+        script: |
+          # 激活 Patrol CLI
+          dart pub global activate patrol_cli
+          
+          # 将 Dart global bin 添加到 PATH
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
+          
+          # 验证安装
+          patrol --version
+      
+      - name: Prepare iOS simulator
+        script: |
+          # 列出可用的模拟器
+          xcrun simctl list devices available
+          
+          # 启动 iPhone 14 Pro 模拟器 (6.7" 屏幕 - App Store 截图标准尺寸)
+          DEVICE_ID=$(xcrun simctl create "iPhone 14 Pro Screenshot" "iPhone 14 Pro" "iOS-17-2")
+          xcrun simctl boot $DEVICE_ID
+          
+          # 等待模拟器启动
+          sleep 10
+      
+      - name: Run Patrol screenshot tests (iPhone 14 Pro)
+        script: |
+          # 运行 Patrol 测试生成截图
+          # --target: 测试文件路径
+          # --release: 使用 Release 模式（隐藏 Debug 横幅）
+          # --dart-define: 传递环境变量
+          # --verbose: 详细日志输出
+          
+          patrol test \
+            --target integration_test/screenshots_test.dart \
+            --release \
+            --dart-define=ENV=testing \
+            --verbose
+      
+      - name: Rename screenshots for device type
+        script: |
+          # 将截图重命名，添加设备类型前缀
+          # Patrol 生成的截图通常在 build/patrol_screenshots/
+          if [ -d "build/patrol_screenshots" ]; then
+            mkdir -p screenshots/iPhone_14_Pro
+            cp build/patrol_screenshots/*.png screenshots/iPhone_14_Pro/ || true
+          fi
+          
+          # 也检查其他可能的路径
+          if [ -d "build/ios_integ/screenshots" ]; then
+            mkdir -p screenshots/iPhone_14_Pro
+            cp build/ios_integ/screenshots/*.png screenshots/iPhone_14_Pro/ || true
+          fi
+      
+      # 可选：为其他设备生成截图（例如 iPhone SE - 5.5" 屏幕）
+      # - name: Run Patrol tests (iPhone SE)
+      #   script: |
+      #     # 重置模拟器
+      #     xcrun simctl shutdown all || true
+      #     
+      #     # 启动 iPhone SE
+      #     DEVICE_ID=$(xcrun simctl create "iPhone SE Screenshot" "iPhone SE (3rd generation)" "iOS-17-2")
+      #     xcrun simctl boot $DEVICE_ID
+      #     sleep 10
+      #     
+      #     # 运行测试
+      #     patrol test \
+      #       --target integration_test/screenshots_test.dart \
+      #       --release \
+      #       --dart-define=ENV=testing \
+      #       --verbose
+      #     
+      #     # 复制截图
+      #     if [ -d "build/patrol_screenshots" ]; then
+      #       mkdir -p screenshots/iPhone_SE
+      #       cp build/patrol_screenshots/*.png screenshots/iPhone_SE/ || true
+      #     fi
+    
+    artifacts:
+      - screenshots/**/*.png
+      - build/patrol_screenshots/**/*.png
+      - build/ios_integ/**/*.png
+      - "*.log"
+    
+    publishing:
+      email:
+        recipients:
+          # 在此添加接收构建通知的邮箱
+          - yushuangqi@hotmail.com
+        notify:
+          success: true
+          failure: true
+
+  # Android 截图自动化工作流（可选）
+  android-screenshots:
+    name: Android Screenshots Generation
+    instance_type: linux_x2
+    max_build_duration: 30
+    environment:
+      vars:
+        ENV: "testing"
+      java: 17
+    scripts:
+      - name: Install Flutter dependencies
+        script: |
+          flutter pub get
+      
+      - name: Install Patrol CLI
+        script: |
+          dart pub global activate patrol_cli
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
+          patrol --version
+      
+      - name: Start Android emulator
+        script: |
+          # 列出可用的系统镜像
+          sdkmanager --list | grep system-images
+          
+          # 创建 Pixel 6 模拟器（6.4" 屏幕）
+          echo "no" | avdmanager create avd \
+            --name "Pixel_6_API_33" \
+            --package "system-images;android-33;google_apis_playstore;x86_64" \
+            --device "pixel_6"
+          
+          # 启动模拟器
+          $ANDROID_HOME/emulator/emulator -avd Pixel_6_API_33 -no-audio -no-boot-anim -no-window &
+          
+          # 等待设备启动
+          adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;'
+          sleep 10
+      
+      - name: Run Patrol screenshot tests
+        script: |
+          patrol test \
+            --target integration_test/screenshots_test.dart \
+            --release \
+            --dart-define=ENV=testing \
+            --verbose
+      
+      - name: Collect screenshots
+        script: |
+          mkdir -p screenshots/Pixel_6
+          
+          if [ -d "build/patrol_screenshots" ]; then
+            cp build/patrol_screenshots/*.png screenshots/Pixel_6/ || true
+          fi
+          
+          if [ -d "build/app/outputs/screenshots" ]; then
+            cp build/app/outputs/screenshots/*.png screenshots/Pixel_6/ || true
+          fi
+    
+    artifacts:
+      - screenshots/**/*.png
+      - build/patrol_screenshots/**/*.png
+      - build/app/outputs/**/*.png
+      - "*.log"
+    
+    publishing:
+      email:
+        recipients:
+          - yushuangqi@hotmail.com
+        notify:
+          success: true
+          failure: true

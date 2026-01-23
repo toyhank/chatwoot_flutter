@@ -41,50 +41,12 @@ void main() async {
         );
       };
 
-      // 初始化本地存储
+      // 初始化本地存储（必须同步完成）
       await StorageUtil.init();
 
-      // 初始化 Firebase（使用平台特定配置）
-      try {
-        if (Platform.isIOS) {
-          // iOS 配置（从 GoogleService-Info.plist 提取）
-          await Firebase.initializeApp(
-            options: const FirebaseOptions(
-              apiKey: "AIzaSyCr5gSBLYbarDdjDKshe684tmTSl4elPMQ",
-              appId: "1:938639328662:ios:137258b304caff91cf49b7",
-              messagingSenderId: "938639328662",
-              projectId: "xcard-2b2ea",
-              storageBucket: "xcard-2b2ea.firebasestorage.app",
-              iosBundleId: "com.toyhank.xcard",
-            ),
-          );
-          AppLogger.info('✅ Firebase iOS 初始化成功');
-        } else {
-          // Android 配置（会自动读取 google-services.json）
-          await Firebase.initializeApp();
-          AppLogger.info('✅ Firebase Android 初始化成功');
-        }
-      } catch (e, stack) {
-        AppLogger.error('⚠️ Firebase 初始化失败', e, stack);
-        // 继续运行应用，但推送功能可能不可用
-      }
-
-      // 初始化未读消息通知器
+      // 初始化未读消息通知器（轻量级，快速完成）
       final unreadNotifier = UnreadMessageNotifier();
       await unreadNotifier.initialize();
-
-      // 初始化推送通知服务（包含 Chatwoot 集成）
-      try {
-        await PushNotificationService.initialize(
-          chatwootBaseUrl: AppConfig.chatwootBaseUrl,
-          websiteToken: AppConfig.chatwootWebsiteToken,
-          unreadNotifier: unreadNotifier, // 传递未读消息通知器
-        );
-        
-        AppLogger.info('✅ 推送通知服务初始化完成');
-      } catch (e, stack) {
-        AppLogger.error('⚠️ 推送服务初始化失败，应用将继续运行', e, stack);
-      }
 
       runApp(
         ChangeNotifierProvider.value(
@@ -142,6 +104,7 @@ class _MyAppState extends State<MyApp> {
     } else {
       debugPrint('⚠️ 用户未登录，跳过推送注册');
     }
+    // 注意：推送注册现在在 _initializeBackgroundServices 中调用
   }
   
   /// 为已登录用户注册推送通知
@@ -187,9 +150,60 @@ class _MyAppState extends State<MyApp> {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const Scaffold(
+        home: Scaffold(
+          backgroundColor: Colors.black, // Match app theme
           body: Center(
-            child: CircularProgressIndicator(),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // App logo/icon area
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB4E666), // App primary green
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.credit_card,
+                    size: 60,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // App name
+                const Text(
+                  'Game Card Trading',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                // Tagline
+                Text(
+                  'Loading...',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                
+                // Loading indicator
+                const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB4E666)),
+                    strokeWidth: 3,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
