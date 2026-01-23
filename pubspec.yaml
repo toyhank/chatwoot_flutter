@@ -84,7 +84,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  patrol: ^3.13.0
+  patrol: 3.11.1  # 兼容 Flutter 3.6.0+ 且支持 patrol_cli 3.6+
 
   flutter_lints: ^5.0.0
 
