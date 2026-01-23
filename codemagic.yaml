@@ -20,8 +20,8 @@ workflows:
       - name: Install Patrol CLI
         script: |
           # 激活 Patrol CLI（指定兼容版本）
-          # patrol 3.11.1 需要 patrol_cli 3.6.0
-          dart pub global activate patrol_cli 3.6.0
+          # patrol 3.11.1 需要 patrol_cli 3.2.0
+          dart pub global activate patrol_cli 3.2.0
           
           # 将 Dart global bin 添加到 PATH
           export PATH="$PATH":"$HOME/.pub-cache/bin"
@@ -126,7 +126,7 @@ workflows:
       - name: Install Patrol CLI
         script: |
           # 安装兼容版本的 Patrol CLI
-          dart pub global activate patrol_cli 3.6.0
+          dart pub global activate patrol_cli 3.2.0
           export PATH="$PATH":"$HOME/.pub-cache/bin"
           patrol --version
       
