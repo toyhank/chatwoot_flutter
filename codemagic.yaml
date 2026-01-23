@@ -5,9 +5,6 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 30
     environment:
-      groups:
-        # 如果有环境变量组，在此引用
-        # - app_store_credentials
       vars:
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
         XCODE_SCHEME: "Runner"
