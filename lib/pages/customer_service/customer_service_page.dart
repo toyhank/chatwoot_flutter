@@ -28,7 +28,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     
     // 构建基础 URL
     String widgetUrl =
-        '${AppConfig.chatwootBaseUrl}/widget?website_token=${AppConfig.chatwootWebsiteToken}&locale=zh_CN';
+        '${AppConfig.chatwootBaseUrl}/widget?website_token=${AppConfig.chatwootWebsiteToken}&locale=en';
 
     // 使用服务端支持的URL参数传递HMAC和用户信息
     try {
@@ -169,7 +169,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
-                    Text('正在加载...', style: TextStyle(color: Colors.grey)),
+                    Text('Loading...', style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),

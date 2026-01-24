@@ -101,7 +101,7 @@ class AppConfig {
   
   // 默认用户信息（仅在没有登录时使用）
   static const String _defaultUserId = 'user_1001';
-  static const String _defaultUserName = '游客';
+  static const String _defaultUserName = 'Guest';
   static const String _defaultUserEmail = 'guest@example.com';
   
   // 获取用户ID（从登录接口返回的信息中获取）

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
@@ -108,12 +108,12 @@
   <!-- 加载动画 -->
   <div id="loading">
     <div class="spinner"></div>
-    <div id="loading-text">正在连接客服...</div>
+    <div id="loading-text">Connecting to support...</div>
   </div>
 
   <!-- 错误提示 -->
   <div id="error">
-    <h3>⚠️ 连接失败</h3>
+    <h3>⚠️ Connection Failed</h3>
     <p id="error-message"></p>
   </div>
 
@@ -193,21 +193,21 @@
 
         // 构建 iframe URL
         // Chatwoot 的 Web Widget 直接嵌入 URL
-        const iframeUrl = `${CONFIG.baseUrl}/widget?website_token=${CONFIG.websiteToken}&locale=zh_CN`;
+        const iframeUrl = `${CONFIG.baseUrl}/widget?website_token=${CONFIG.websiteToken}&locale=en`;
 
         log('加载 URL: ' + iframeUrl);
-        updateLoadingText('正在连接...');
+        updateLoadingText('Connecting...');
 
         // 监听 iframe 加载
         iframe.onload = function () {
           log('iframe 加载完成', 'success');
-          updateLoadingText('连接成功！');
+          updateLoadingText('Connected!');
           hideLoading();
         };
 
         iframe.onerror = function (error) {
           log('iframe 加载失败', 'error');
-          showError('无法连接到客服服务器，请检查网络');
+          showError('Cannot connect to support server, please check your network');
         };
 
         // 设置 iframe src

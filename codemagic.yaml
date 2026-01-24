@@ -36,19 +36,29 @@ workflows:
           
           # 启动 iPhone 14 Pro 模拟器 (6.7" 屏幕 - App Store 截图标准尺寸)
           DEVICE_ID=$(xcrun simctl create "iPhone 14 Pro Screenshot" "iPhone 14 Pro" "iOS-17-2")
+          echo "Created simulator with UDID: $DEVICE_ID"
           xcrun simctl boot $DEVICE_ID
+          
+          # 保存 DEVICE_ID 到文件，供后续步骤使用
+          echo $DEVICE_ID > /tmp/simulator_udid.txt
           
           # 等待模拟器启动
           sleep 10
       
       - name: Run Patrol screenshot tests (iPhone 14 Pro)
         script: |
-          # 获取刚创建的模拟器 UDID
-          SIMULATOR_UDID=$(xcrun simctl list devices | grep "iPhone 14 Pro Screenshot" | grep -o '[A-F0-9-]\{36\}' | head -n 1)
-          echo "Using simulator: $SIMULATOR_UDID"
+          # 读取保存的模拟器 UDID
+          SIMULATOR_UDID=$(cat /tmp/simulator_udid.txt)
+          echo "Using simulator UDID: $SIMULATOR_UDID"
+          
+          # 验证 UDID 不为空
+          if [ -z "$SIMULATOR_UDID" ]; then
+            echo "ERROR: Simulator UDID is empty!"
+            exit 1
+          fi
           
           # 运行 Patrol 测试生成截图
-          # --device: 明确指定 iOS 模拟器（避免使用 macOS）
+          # -d: 明确指定 iOS 模拟器 UDID（避免使用 macOS）
           # --target: 测试文件路径
           # --release: 使用 Release 模式（隐藏 Debug 横幅）
           # --dart-define: 传递环境变量
@@ -56,7 +66,7 @@ workflows:
           
           patrol test \
             --target integration_test/screenshots_test.dart \
-            --device $SIMULATOR_UDID \
+            -d $SIMULATOR_UDID \
             --release \
             --dart-define=ENV=testing \
             --verbose
