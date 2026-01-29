@@ -36,12 +36,6 @@ class _HomePageState extends State<HomePage> {
       'subtitle': 'Rates up to ₦ 1,165',
       'type': 'iTunes',
     },
-    {
-      'icon': Icons.games,
-      'title': 'Steam Wallet',
-      'subtitle': 'Rates up to ₦ 1,250',
-      'type': 'Steam',
-    },
   ];
 
   @override
@@ -84,8 +78,9 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 顶部通知栏
-            _buildNotificationBar(),
-            const SizedBox(height: 16),
+            // Notification bar - Hidden (not needed)
+            // _buildNotificationBar(),
+            // const SizedBox(height: 16),
 
             // 绿色资产卡片
             _buildAssetCard(),

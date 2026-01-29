@@ -136,7 +136,7 @@ class _TradePageState extends State<TradePage> with SingleTickerProviderStateMix
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '¥99.99',
+                            '₦99.99',
                             style: TextStyle(
                               color: Theme.of(context).primaryColor,
                               fontSize: 16,

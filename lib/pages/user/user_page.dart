@@ -73,11 +73,10 @@ class _UserPageState extends State<UserPage> {
     return Card(
       margin: const EdgeInsets.all(16),
       child: InkWell(
-        onTap: () {
-          if (!_isLoggedIn) {
-            Navigator.pushNamed(context, '/login');
-          }
-        },
+        // Only enable tap when logged out (to navigate to login)
+        onTap: !_isLoggedIn ? () {
+          Navigator.pushNamed(context, '/login');
+        } : null,
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Row(
@@ -118,12 +117,13 @@ class _UserPageState extends State<UserPage> {
                 ),
               ),
               
-              // 箭头
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.grey[600],
-              ),
+              // 箭头 - only show when logged out to indicate it's tappable
+              if (!_isLoggedIn)
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
             ],
           ),
         ),
@@ -186,10 +186,10 @@ class _UserPageState extends State<UserPage> {
   
   /// 功能列表
   Widget _buildMenuList() {
-    // Only show App Logs (functional) - other items hidden
+    // All menu items hidden - only showing Logout when logged in
     final menuItems = [
-      {'icon': Icons.bug_report, 'title': 'App Logs', 'route': '/logs'},
-      // Hidden non-functional items:
+      // Hidden items (not implemented or not needed):
+      // {'icon': Icons.bug_report, 'title': 'App Logs', 'route': '/logs'},
       // {'icon': Icons.account_balance_wallet, 'title': 'My Wallet', 'route': '/wallet'},
       // {'icon': Icons.history, 'title': 'Withdrawal History', 'route': '/record'},
       // {'icon': Icons.card_giftcard, 'title': 'Daily Check-in', 'route': '/signin'},
@@ -259,7 +259,7 @@ class _UserPageState extends State<UserPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Logout'),
-        content: const Text('确定要退出登录吗？'),
+        content: const Text('Are you sure you want to log out?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

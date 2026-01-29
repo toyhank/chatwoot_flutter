@@ -1,4 +1,4 @@
-package com.example.testcrm_flutter
+package com.example.xxcard
 
 import io.flutter.embedding.android.FlutterActivity
 
