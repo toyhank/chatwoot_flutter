@@ -81,13 +81,13 @@ class _MyAppState extends State<MyApp> {
   Future<void> _checkLoginStatus() async {
     debugPrint('🔍 开始检查登录状态...');
     
-    // 检查本地存储中是否有登录信息
-    final isLoggedIn = await StorageUtil.getBool('isLoggedIn') ?? false;
-    final token = await StorageUtil.getString('token');
+    // 检查本地存储中是否有登录信息（使用 AppConfig 中定义的键）
+    final isLoggedIn = await StorageUtil.getBool(AppConfig.keyIsLoggedIn) ?? false;
+    final token = await StorageUtil.getString(AppConfig.keyToken);
     final userId = await StorageUtil.getString('userId');
 
     debugPrint('  - isLoggedIn标志: $isLoggedIn');
-    debugPrint('  - token: ${token != null ? "存在" : "null"}');
+    debugPrint('  - token: ${token != null ? "存在(长度${token.length})" : "null"}');
     debugPrint('  - userId: ${userId != null ? "存在" : "null"}');
 
     setState(() {

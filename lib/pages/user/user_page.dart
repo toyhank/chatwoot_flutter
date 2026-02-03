@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../log_viewer_page.dart';
+import '../../services/api_service.dart';
+import '../../services/push_notification_service.dart';
+import '../../config/app_config.dart';
 
 /// 用户中心页面
 class UserPage extends StatefulWidget {
@@ -17,6 +20,7 @@ class _UserPageState extends State<UserPage> {
   String _userId = '';
   final String _avatar = '';
   double _balance = 0.0;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -220,6 +224,17 @@ class _UserPageState extends State<UserPage> {
             },
           )),
           
+          // 删除账户
+          if (_isLoggedIn)
+            _buildMenuItem(
+              icon: Icons.delete_forever,
+              title: 'Delete Account',
+              onTap: _onDeleteAccount,
+              showDivider: true,
+              iconColor: Colors.red,
+              textColor: Colors.red,
+            ),
+          
           // 退出登录
           if (_isLoggedIn)
             _buildMenuItem(
@@ -238,12 +253,14 @@ class _UserPageState extends State<UserPage> {
     required String title,
     required VoidCallback onTap,
     bool showDivider = true,
+    Color? iconColor,
+    Color? textColor,
   }) {
     return Column(
       children: [
         ListTile(
-          leading: Icon(icon),
-          title: Text(title),
+          leading: Icon(icon, color: iconColor),
+          title: Text(title, style: TextStyle(color: textColor)),
           trailing: const Icon(Icons.arrow_forward_ios, size: 16),
           onTap: onTap,
         ),
@@ -283,11 +300,199 @@ class _UserPageState extends State<UserPage> {
       ),
     );
   }
+  
+  /// 删除账户
+  void _onDeleteAccount() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            const SizedBox(width: 8),
+            const Text('Delete Account'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This action is permanent and cannot be undone.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            const Text('The following data will be permanently deleted:'),
+            const SizedBox(height: 8),
+            const Text('• Your account and profile'),
+            const Text('• All your messages and conversations'),
+            const Text('• All app preferences and settings'),
+            const SizedBox(height: 12),
+            const Text(
+              'Are you sure you want to continue?',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _confirmDeleteAccount();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Delete Account'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 二次确认删除账户
+  void _confirmDeleteAccount() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Final Confirmation'),
+        content: const Text(
+          'This is your last chance to cancel. Your account will be permanently deleted and cannot be recovered.\n\nDo you really want to delete your account?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performDeleteAccount();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Yes, Delete My Account'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 执行账户删除
+  Future<void> _performDeleteAccount() async {
+    setState(() {
+      _isDeleting = true;
+    });
+    
+    try {
+      // 调用删除账户 API
+      final apiService = ApiService();
+      final response = await apiService.deleteAccount();
+      
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+        
+        if (response.isSuccess) {
+          // 删除成功，清理本地数据
+          await _clearAllData();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Your account has been permanently deleted'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
+            );
+            
+            // 跳转到登录页面
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/login',
+              (route) => false,
+            );
+          }
+        } else {
+          // 删除失败，显示错误信息
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Deletion Failed'),
+                content: Text(
+                  response.message.isNotEmpty
+                      ? response.message
+                      : 'Failed to delete account. Please try again later or contact support.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _performDeleteAccount();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+        
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text('An error occurred: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+  
+  /// 清理所有本地数据
+  Future<void> _clearAllData() async {
+    try {
+      // 清除推送订阅
+      await PushNotificationService.unregisterPushToken();
+      await PushNotificationService.clearChatwootData();
+    } catch (e) {
+      debugPrint('清除推送订阅失败: $e');
+    }
+    
+    // 清除所有 SharedPreferences 数据
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    
+    // 更新本地状态
+    setState(() {
+      _isLoggedIn = false;
+      _username = 'Guest';
+      _email = '';
+      _userId = '';
+      _balance = 0.0;
+    });
+  }
 }
-
-
-
-
-
-
-

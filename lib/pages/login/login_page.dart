@@ -278,9 +278,19 @@ class _LoginPageState extends State<LoginPage> {
 
   /// 保存登录信息
   Future<void> _saveLoginInfo(user) async {
+    debugPrint('📝 ===== 开始保存登录信息 =====');
+    debugPrint('📝 用户Token: ${user.token}');
+    debugPrint('📝 用户ID: ${user.id}');
+    debugPrint('📝 用户名: ${user.username}');
+    debugPrint('📝 邮箱: ${user.email}');
+    
     // 保存 token
     if (user.token != null) {
       await StorageUtil.setString(AppConfig.keyToken, user.token!);
+      debugPrint('✅ Token已保存到 ${AppConfig.keyToken}: ${user.token!.substring(0, 10)}...');
+    } else {
+      debugPrint('❌ 警告：用户对象中没有token字段！');
+      debugPrint('📋 完整用户数据: ${jsonEncode(user.toJson())}');
     }
     
     // 保存用户信息（完整JSON）
@@ -288,20 +298,27 @@ class _LoginPageState extends State<LoginPage> {
       AppConfig.keyUserInfo, 
       jsonEncode(user.toJson()),
     );
+    debugPrint('✅ 用户信息已保存');
     
     // 保存登录状态
     await StorageUtil.setBool(AppConfig.keyIsLoggedIn, true);
+    debugPrint('✅ 登录状态已设置');
     
     // 保存单独的字段（兼容旧版本代码）
     if (user.id != null) {
       await StorageUtil.setString('userId', user.id.toString());
+      debugPrint('✅ userId已保存');
     }
     if (user.username != null) {
       await StorageUtil.setString('userName', user.username!);
+      debugPrint('✅ userName已保存');
     }
     if (user.email != null) {
       await StorageUtil.setString('userEmail', user.email!);
+      debugPrint('✅ userEmail已保存');
     }
+    
+    debugPrint('📝 ===== 登录信息保存完成 =====');
     
     // 注册推送 Token 到 Chatwoot（异步执行，不阻塞登录流程）
     _registerPushToken();

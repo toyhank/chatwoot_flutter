@@ -402,6 +402,41 @@ class ApiService {
       );
     }
   }
+  
+  /// 删除账户
+  /// 永久删除用户账户及相关数据
+  Future<ApiResponse<dynamic>> deleteAccount() async {
+    try {
+      final response = await delete('/api/mobile/user/delete');
+      
+      return ApiResponse.fromJson(response.data, null);
+    } on DioException catch (e) {
+      String errorMsg = '删除账户失败';
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        errorMsg = '网络连接超时，请检查网络';
+      } else if (e.type == DioExceptionType.badResponse) {
+        final data = e.response?.data;
+        if (data is Map<String, dynamic>) {
+          errorMsg = data['message'] ?? data['msg'] ?? errorMsg;
+        }
+      } else if (e.type == DioExceptionType.unknown) {
+        errorMsg = '网络连接失败，请检查网络';
+      }
+      
+      return ApiResponse(
+        code: e.response?.statusCode ?? -1,
+        message: errorMsg,
+        data: null,
+      );
+    } catch (e) {
+      return ApiResponse(
+        code: -1,
+        message: '删除账户失败: $e',
+        data: null,
+      );
+    }
+  }
 }
 
 

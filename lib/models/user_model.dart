@@ -29,7 +29,8 @@ class UserModel {
       phone: json['phone']?.toString(),
       avatar: json['avatar']?.toString(),
       balance: json['balance'] != null ? double.tryParse(json['balance'].toString()) : null,
-      token: json['token']?.toString(),
+      // 优先使用 access_token（登录接口返回，用于API认证），其次使用 token
+      token: json['access_token']?.toString() ?? json['token']?.toString(),
     );
   }
   
