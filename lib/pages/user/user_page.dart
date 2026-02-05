@@ -283,16 +283,24 @@ class _UserPageState extends State<UserPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              setState(() {
-                _isLoggedIn = false;
-                _username = 'Guest';
-                _balance = 0.0;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logged out successfully')),
-              );
+              
+              // 清除所有本地数据
+              await _clearAllData();
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Logged out successfully')),
+                );
+                
+                // 清除所有路由栈并跳转到登录页
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (route) => false,
+                );
+              }
             },
             child: const Text('Confirm'),
           ),

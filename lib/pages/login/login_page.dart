@@ -244,8 +244,12 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               );
 
-              // 跳转到主页面
-              Navigator.pushReplacementNamed(context, '/main');
+              // 清除所有路由栈并跳转到主页
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/main',
+                (route) => false,
+              );
             }
           } else {
             // 登录失败，显示错误信息
