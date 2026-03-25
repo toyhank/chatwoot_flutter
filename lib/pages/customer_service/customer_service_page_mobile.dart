@@ -68,7 +68,8 @@ class _CustomerServicePageImplState extends State<CustomerServicePageImpl> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
+      body: SafeArea(
+        child: Stack(
         children: [
           FutureBuilder<String>(
             future: _webviewURL,
@@ -135,6 +136,51 @@ class _CustomerServicePageImplState extends State<CustomerServicePageImpl> {
                   if (mounted) {
                     setState(() => _isLoading = false);
                   }
+                  // 注入 JS：键盘弹出时自动滚动到底部（兼容 iOS/Android）
+                  await controller.evaluateJavascript(source: '''
+                    (function() {
+                      function scrollToBottom() {
+                        // 滚动 window
+                        window.scrollTo(0, document.body.scrollHeight);
+                        // 遍历 Chatwoot 内部可能的消息列表容器
+                        var selectors = [
+                          '.conversation-wrap',
+                          '.messages-wrap',
+                          '.chat-content',
+                          '[class*="conversation"]',
+                          '[class*="messages"]'
+                        ];
+                        for (var i = 0; i < selectors.length; i++) {
+                          var els = document.querySelectorAll(selectors[i]);
+                          els.forEach(function(el) {
+                            el.scrollTop = el.scrollHeight;
+                          });
+                        }
+                        // 把当前活跃元素滚入视野
+                        var active = document.activeElement;
+                        if (active) active.scrollIntoView(false);
+                      }
+
+                      // 方式1：focusin 触发（主要用于 iOS）
+                      document.addEventListener('focusin', function(e) {
+                        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                          setTimeout(scrollToBottom, 350);
+                          setTimeout(scrollToBottom, 700);
+                        }
+                      });
+
+                      // 方式2：visualViewport resize（主要用于 Android）
+                      if (window.visualViewport) {
+                        window.visualViewport.addEventListener('resize', function() {
+                          var active = document.activeElement;
+                          if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+                            setTimeout(scrollToBottom, 100);
+                            setTimeout(scrollToBottom, 400);
+                          }
+                        });
+                      }
+                    })();
+                  ''');
                 },
                 onLoadError: (controller, url, code, message) {
                   debugPrint('❌ 加载错误: $message');
@@ -163,6 +209,7 @@ class _CustomerServicePageImplState extends State<CustomerServicePageImpl> {
               ),
             ),
         ],
+        ),
       ),
     );
   }
