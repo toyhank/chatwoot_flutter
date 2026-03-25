@@ -136,7 +136,7 @@ class _CustomerServicePageImplState extends State<CustomerServicePageImpl> {
                   if (mounted) {
                     setState(() => _isLoading = false);
                   }
-                  // 注入 JS：键盘弹出时自动滚动到底部（兼容 iOS/Android）
+                  // 注入 JS：键盘弹出时自动滚动到底部 + 点击空白处收起键盘
                   await controller.evaluateJavascript(source: '''
                     (function() {
                       function scrollToBottom() {
@@ -161,7 +161,7 @@ class _CustomerServicePageImplState extends State<CustomerServicePageImpl> {
                         if (active) active.scrollIntoView(false);
                       }
 
-                      // 方式1：focusin 触发（主要用于 iOS）
+                      // 1. 自动滚动机制
                       document.addEventListener('focusin', function(e) {
                         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                           setTimeout(scrollToBottom, 350);
@@ -169,7 +169,6 @@ class _CustomerServicePageImplState extends State<CustomerServicePageImpl> {
                         }
                       });
 
-                      // 方式2：visualViewport resize（主要用于 Android）
                       if (window.visualViewport) {
                         window.visualViewport.addEventListener('resize', function() {
                           var active = document.activeElement;
@@ -179,6 +178,17 @@ class _CustomerServicePageImplState extends State<CustomerServicePageImpl> {
                           }
                         });
                       }
+
+                      // 2. 点击空白收起键盘
+                      document.addEventListener('click', function(e) {
+                        var active = document.activeElement;
+                        // 如果当前有焦点在输入框，且点击的不是输入框，则失去焦点以收起键盘
+                        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+                          if (e.target !== active) {
+                            active.blur();
+                          }
+                        }
+                      }, true); // 使用捕获模式确保优先拦截
                     })();
                   ''');
                 },
