@@ -23,8 +23,8 @@ class UserModel {
     return UserModel(
       // 支持 uid 和 id 两种字段名
       id: json['uid']?.toString() ?? json['id']?.toString(),
-      // 支持 nickname 和 username 两种字段名
-      username: json['nickname']?.toString() ?? json['username']?.toString(),
+      // 支持 name, nickname 和 username 几种字段名
+      username: json['name']?.toString() ?? json['nickname']?.toString() ?? json['username']?.toString(),
       email: json['email']?.toString(),
       phone: json['phone']?.toString(),
       avatar: json['avatar']?.toString(),

@@ -175,6 +175,22 @@ class AppConfig {
     return _defaultUserEmail;
   }
   
+  // 获取用户余额
+  static Future<double> getUserBalance() async {
+    final userInfoStr = await StorageUtil.getString(keyUserInfo);
+    if (userInfoStr != null && userInfoStr.isNotEmpty) {
+      try {
+        final userInfo = jsonDecode(userInfoStr) as Map<String, dynamic>;
+        if (userInfo['balance'] != null) {
+          return double.tryParse(userInfo['balance'].toString()) ?? 0.0;
+        }
+      } catch (e) {
+        // 解析失败
+      }
+    }
+    return 0.0;
+  }
+  
   // 实现说明：
   // - Web 平台：直接注入 Chatwoot JavaScript SDK
   // - Android/iOS：使用 WebView 加载包含 Chatwoot SDK 的 HTML

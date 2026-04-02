@@ -12,6 +12,7 @@ import 'services/unread_message_notifier.dart';
 import 'pages/main_page.dart';
 import 'pages/login/login_page.dart';
 import 'pages/register/register_page.dart';
+import 'providers/user_provider.dart';
 
 void main() async {
   runZonedGuarded(
@@ -49,8 +50,11 @@ void main() async {
       await unreadNotifier.initialize();
 
       runApp(
-        ChangeNotifierProvider.value(
-          value: unreadNotifier,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: unreadNotifier),
+            ChangeNotifierProvider(create: (_) => UserProvider()),
+          ],
           child: const MyApp(),
         ),
       );

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../main_page.dart';
 import '../../services/exchange_rate_service.dart';
+import '../../utils/storage_util.dart';
+import '../../config/app_config.dart';
+import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../../providers/user_provider.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,6 +20,7 @@ class _HomePageState extends State<HomePage> {
   // Exchange rate state
   double? _exchangeRate;
   bool _isLoadingRate = true;
+  bool _isLoggedIn = false;
 
   // 模拟数据
   final List<Map<String, dynamic>> _cardList = [
@@ -42,6 +48,18 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _fetchExchangeRate();
+    _loadUserInfo();
+  }
+  
+  /// 加载用户信息 (不再需要手动加载余额，UserProvider 会处理)
+  Future<void> _loadUserInfo() async {
+    final isLoggedIn = await StorageUtil.getBool(AppConfig.keyIsLoggedIn) ?? false;
+    
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = isLoggedIn;
+      });
+    }
   }
   
   /// 获取汇率
@@ -72,47 +90,54 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 顶部通知栏
-            // Notification bar - Hidden (not needed)
-            // _buildNotificationBar(),
-            // const SizedBox(height: 16),
-
-            // 绿色资产卡片
-            _buildAssetCard(),
-            const SizedBox(height: 16),
-
-            // Feature cards (Weekly Bonus / Daily Check-in) - Hidden (not implemented)
-            // _buildFeatureRow(),
-            // const SizedBox(height: 24),
-
-            // 列表标题
-            const Text(
-              'Cards List',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await context.read<UserProvider>().refreshUserInfo();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+              
+              // 绿色资产卡片
+              Consumer<UserProvider>(
+                builder: (context, userProvider, _) {
+                  return _buildAssetCard(userProvider);
+                },
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
-            // 卡片列表
-            ListView.separated(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: _cardList.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _buildListItem(_cardList[index]);
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+              // Feature cards (Weekly Bonus / Daily Check-in)
+              if (_isLoggedIn) _buildFeatureRow(),
+              if (_isLoggedIn) const SizedBox(height: 24),
+
+              // 列表标题
+              const Text(
+                'Cards List',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 卡片列表
+              ListView.separated(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemCount: _cardList.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  return _buildListItem(_cardList[index]);
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -145,7 +170,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // 2. 绿色资产卡片
-  Widget _buildAssetCard() {
+  Widget _buildAssetCard(UserProvider userProvider) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -176,12 +201,12 @@ class _HomePageState extends State<HomePage> {
                        style: TextStyle(color: Colors.black54, fontSize: 10),
                      ),
                      const SizedBox(height: 4),
-                     Text(
-                       _isLoadingRate 
-                         ? '1USD ≈ ₦...' 
-                         : '1USD ≈ ₦${ExchangeRateService.formatRate(_exchangeRate!)}',
-                       style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
-                     ),
+                      Text(
+                        _isLoadingRate 
+                          ? '1USD ≈ ₦...' 
+                          : '1USD ≈ ₦${ExchangeRateService.formatRate(userProvider.exchangeRate)}',
+                        style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
                   ],
                 ),
               ),
@@ -195,7 +220,7 @@ class _HomePageState extends State<HomePage> {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
-                _isBalanceVisible ? '0.00' : '****',
+                !_isLoggedIn ? '0.00' : (_isBalanceVisible ? userProvider.balance.toStringAsFixed(2) : '****'),
                 style: const TextStyle(
                   color: Colors.black,
                   fontSize: 36,
@@ -204,10 +229,10 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(width: 4),
               const Text(
-                'USD',
+                '₦', // Changed from USD to ₦
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 16,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -216,7 +241,11 @@ class _HomePageState extends State<HomePage> {
           Row(
             children: [
               Text(
-                _isBalanceVisible ? '≈ ₦ 0.00' : '≈ ₦ ****',
+                !_isLoggedIn 
+                  ? '≈ \$ 0.00' 
+                  : (_isBalanceVisible 
+                      ? '≈ \$ ${userProvider.usdBalance.toStringAsFixed(2)}' 
+                      : '≈ \$ ****'),
                 style: const TextStyle(
                   color: Colors.black54,
                   fontSize: 14,
@@ -320,7 +349,7 @@ class _HomePageState extends State<HomePage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Text(
-                        '0 USD',
+                        '0 ₦',
                         style: TextStyle(color: Color(0xFFB4E666), fontSize: 10),
                       ),
                     ),
@@ -333,26 +362,32 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         // Daily Check-in
         Expanded(
-          child: Container(
-            height: 100,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1E),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Daily Check-in',
-                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                Align(
-                  alignment: Alignment.bottomRight,
-                  child: Icon(Icons.edit_note, color: Colors.grey[400], size: 32),
-                ),
-              ],
+          child: InkWell(
+            onTap: () {
+              // 直接触发签到
+              context.read<UserProvider>().checkIn(context);
+            },
+            child: Container(
+              height: 100,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Daily Check-in',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Icon(Icons.edit_note, color: const Color(AppConfig.primaryColor), size: 32),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

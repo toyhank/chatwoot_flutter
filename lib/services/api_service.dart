@@ -285,7 +285,7 @@ class ApiService {
       }
       
       final response = await get(
-        '/api/mobile/user/info',
+        '/api/mobile/user/profile',
         queryParameters: {'uid': uid},
       );
       
@@ -433,6 +433,42 @@ class ApiService {
       return ApiResponse(
         code: -1,
         message: '删除账户失败: $e',
+        data: null,
+      );
+    }
+  }
+
+  /// 每日签到
+  /// 签到成功后会返回新的余额
+  Future<ApiResponse<Map<String, dynamic>>> checkIn() async {
+    try {
+      final response = await post('/api/mobile/user/check_in');
+      
+      return ApiResponse.fromJson(
+        response.data,
+        (json) => json as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      String errorMsg = '签到失败';
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        errorMsg = '网络连接超时，请检查网络';
+      } else if (e.type == DioExceptionType.badResponse) {
+        final data = e.response?.data;
+        if (data is Map<String, dynamic>) {
+          errorMsg = data['message'] ?? data['msg'] ?? errorMsg;
+        }
+      }
+      
+      return ApiResponse(
+        code: e.response?.statusCode ?? -1,
+        message: errorMsg,
+        data: e.response?.data != null ? (e.response?.data as Map<String, dynamic>)['data'] : null,
+      );
+    } catch (e) {
+      return ApiResponse(
+        code: -1,
+        message: '签到失败: $e',
         data: null,
       );
     }

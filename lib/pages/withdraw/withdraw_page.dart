@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../main_page.dart';
+import 'package:provider/provider.dart';
+import '../../providers/user_provider.dart';
 
 /// 提现页面
 class WithdrawPage extends StatefulWidget {
@@ -16,7 +18,6 @@ class _WithdrawPageState extends State<WithdrawPage> {
   final _accountController = TextEditingController();
   
   String _withdrawType = 'Bank Card';
-  final double _balance = 1000.00; // 示例余额
   
   @override
   void dispose() {
@@ -45,17 +46,26 @@ class _WithdrawPageState extends State<WithdrawPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // 余额卡片
-            _buildBalanceCard(),
-            const SizedBox(height: 20),
-            
-            // 提现类型
-            _buildWithdrawType(),
-            const SizedBox(height: 20),
-            
-            // 提现金额
-            _buildAmountInput(),
-            const SizedBox(height: 20),
+            // 提现子项
+            Consumer<UserProvider>(
+              builder: (context, userProvider, _) {
+                return Column(
+                  children: [
+                    // 余额卡片
+                    _buildBalanceCard(userProvider.nairaBalance),
+                    const SizedBox(height: 20),
+                    
+                    // 提现类型
+                    _buildWithdrawType(),
+                    const SizedBox(height: 20),
+                    
+                    // 提现金额
+                    _buildAmountInput(userProvider.nairaBalance),
+                    const SizedBox(height: 20),
+                  ],
+                );
+              },
+            ),
             
             // 账号信息
             _buildAccountInput(),
@@ -77,7 +87,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
   }
   
   /// 余额卡片
-  Widget _buildBalanceCard() {
+  Widget _buildBalanceCard(double balance) {
     return InkWell(
       onTap: () {
         // Navigate to chat tab when balance card is tapped (index 2)
@@ -94,7 +104,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                '¥${_balance.toStringAsFixed(2)}',
+                '₦${balance.toStringAsFixed(2)}',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
@@ -139,7 +149,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
   }
   
   /// 提现金额输入
-  Widget _buildAmountInput() {
+  Widget _buildAmountInput(double balance) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -156,10 +166,10 @@ class _WithdrawPageState extends State<WithdrawPage> {
           ],
           decoration: InputDecoration(
             hintText: 'Enter withdrawal amount',
-            prefixText: '¥ ',
+            prefixText: '₦ ',
             suffixIcon: TextButton(
               onPressed: () {
-                _amountController.text = _balance.toString();
+                _amountController.text = balance.toStringAsFixed(2);
               },
               child: const Text('All'),
             ),
@@ -172,7 +182,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
             if (amount == null || amount <= 0) {
               return 'Please enter valid amount';
             }
-            if (amount > _balance) {
+            if (amount > balance) {
               return 'Insufficient balance';
             }
             return null;
@@ -222,7 +232,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
             ),
             const SizedBox(height: 8),
             const Text(
-              '1. Minimum withdrawal amount is ¥10\n'
+              '1. Minimum withdrawal amount is ₦5,000\n'
               '2. Maximum 3 withdrawals per day\n'
               '3. Processed within 24 hours on weekdays\n'
               '4. Holidays delayed to next business day',
@@ -242,7 +252,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Withdrawal Request'),
-          content: Text('Amount: ¥${_amountController.text}\nMethod: $_withdrawType'),
+          content: Text('Amount: ₦${_amountController.text}\nMethod: $_withdrawType'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),

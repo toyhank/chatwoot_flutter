@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../log_viewer_page.dart';
 import '../../services/api_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../config/app_config.dart';
+import '../../utils/storage_util.dart';
+import 'package:provider/provider.dart';
+import '../../providers/user_provider.dart';
 
 /// 用户中心页面
 class UserPage extends StatefulWidget {
@@ -15,11 +19,7 @@ class UserPage extends StatefulWidget {
 
 class _UserPageState extends State<UserPage> {
   bool _isLoggedIn = false;
-  String _username = 'Guest';
-  String _email = '';
-  String _userId = '';
   final String _avatar = '';
-  double _balance = 0.0;
   bool _isDeleting = false;
 
   @override
@@ -31,12 +31,8 @@ class _UserPageState extends State<UserPage> {
   /// 加载用户信息
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
-    
     setState(() {
-      _isLoggedIn = prefs.getBool('is_logged_in') ?? false;  // AppConfig.keyIsLoggedIn
-      _username = prefs.getString('userName') ?? 'Guest';  // 'userName' not 'name'
-      _email = prefs.getString('userEmail') ?? '';  // 'userEmail' not 'email'
-      _userId = prefs.getString('userId') ?? '';
+      _isLoggedIn = prefs.getBool(AppConfig.keyIsLoggedIn) ?? false;
     });
   }
 
@@ -58,12 +54,21 @@ class _UserPageState extends State<UserPage> {
       body: ListView(
         children: [
           // 用户信息卡片
-          _buildUserInfoCard(),
+          Consumer<UserProvider>(
+            builder: (context, userProvider, _) {
+              return _buildUserInfoCard(userProvider);
+            },
+          ),
           const SizedBox(height: 10),
           
-          // Assets card - Hidden (not implemented)
-          // _buildAssetsCard(),
-          // const SizedBox(height: 10),
+          // Assets card
+          if (_isLoggedIn) 
+            Consumer<UserProvider>(
+              builder: (context, userProvider, _) {
+                return _buildAssetsCard(userProvider);
+              },
+            ),
+          if (_isLoggedIn) const SizedBox(height: 10),
           
           // 功能列表
           _buildMenuList(),
@@ -73,7 +78,7 @@ class _UserPageState extends State<UserPage> {
   }
   
   /// 用户信息卡片
-  Widget _buildUserInfoCard() {
+  Widget _buildUserInfoCard(UserProvider userProvider) {
     return Card(
       margin: const EdgeInsets.all(16),
       child: InkWell(
@@ -101,7 +106,7 @@ class _UserPageState extends State<UserPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _isLoggedIn ? _username : 'Tap to Login',
+                      _isLoggedIn ? userProvider.username : 'Tap to Login',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -110,7 +115,7 @@ class _UserPageState extends State<UserPage> {
                     const SizedBox(height: 4),
                     Text(
                       _isLoggedIn 
-                        ? (_email.isNotEmpty ? _email : 'ID: $_userId') 
+                        ? (userProvider.email.isNotEmpty ? userProvider.email : 'ID: ${userProvider.userId}') 
                         : 'Login for more services',
                       style: TextStyle(
                         fontSize: 12,
@@ -136,7 +141,7 @@ class _UserPageState extends State<UserPage> {
   }
   
   /// 我的资产
-  Widget _buildAssetsCard() {
+  Widget _buildAssetsCard(UserProvider userProvider) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
@@ -144,7 +149,10 @@ class _UserPageState extends State<UserPage> {
         child: Row(
           children: [
             Expanded(
-              child: _buildAssetItem('Balance', '¥${_balance.toStringAsFixed(2)}'),
+              child: InkWell(
+                onTap: () => userProvider.refreshUserInfo(),
+                child: _buildAssetItem('Balance', '₦${userProvider.nairaBalance.toStringAsFixed(2)}'),
+              ),
             ),
             Container(
               width: 1,
@@ -192,11 +200,10 @@ class _UserPageState extends State<UserPage> {
   Widget _buildMenuList() {
     // All menu items hidden - only showing Logout when logged in
     final menuItems = [
-      // Hidden items (not implemented or not needed):
+      if (_isLoggedIn) {'icon': Icons.card_giftcard, 'title': 'Daily Check-in', 'route': '/signin'},
       // {'icon': Icons.bug_report, 'title': 'App Logs', 'route': '/logs'},
       // {'icon': Icons.account_balance_wallet, 'title': 'My Wallet', 'route': '/wallet'},
       // {'icon': Icons.history, 'title': 'Withdrawal History', 'route': '/record'},
-      // {'icon': Icons.card_giftcard, 'title': 'Daily Check-in', 'route': '/signin'},
       // {'icon': Icons.person_add, 'title': 'Invite Friends', 'route': '/invite'},
       // {'icon': Icons.notifications, 'title': 'Notifications', 'route': '/notifications'},
       // {'icon': Icons.help, 'title': 'Help Center', 'route': '/help'},
@@ -219,8 +226,9 @@ class _UserPageState extends State<UserPage> {
                     builder: (context) => const LogViewerPage(),
                   ),
                 );
+              } else if (route == '/signin') {
+                context.read<UserProvider>().checkIn(context);
               }
-              // TODO: 其他页面跳转
             },
           )),
           
@@ -494,13 +502,15 @@ class _UserPageState extends State<UserPage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     
-    // 更新本地状态
+    // 更新本地状态 (provider 也会更新，这里可以根据需要清理)
+    context.read<UserProvider>().logout();
+    
     setState(() {
       _isLoggedIn = false;
-      _username = 'Guest';
-      _email = '';
-      _userId = '';
-      _balance = 0.0;
     });
   }
+  
+  // _refreshBalance 逻辑已移至 UserProvider.refreshUserInfo
+  
+  // _onCheckIn 逻辑已移至 UserProvider.checkIn
 }
